@@ -15,8 +15,23 @@ import functools
 from tqdm import tqdm
 from transformers.models.llama.modeling_llama import repeat_kv
 import math
+from transformers.models.llama.modeling_llama import LlamaDecoderLayer
+from transformers.models.llama.modeling_llama import LlamaMLP,LlamaAttention,LlamaSdpaAttention
 
 
+def get_grad_stat(model, dataloader, accumulate_type='max', prefixed_tokens=None, online_had=False):
+    def stat_tensor(layer, tensor, type):
+        hidden_dim = tensor.shape[-1]
+        tensor = tensor.view(-1, hidden_dim).abs().detach()
+        ema_factor = 0.99
+        if layer.output_grad is None:
+            layer.output_grad = tensor
+        else:
+            layer.output_grad = torch.max(layer.output_grad, tensor)
+    def grad_stat_hook(m, x, y, name):
+        pass
+
+# get the activation statistic for activation quantization on 64 cal_dataloader
 def get_act_stat(model, dataloader, accumulate_type='max', prefixed_tokens=None, online_had=False):
     model.eval()
     num_heads = model.config.num_attention_heads
@@ -45,6 +60,10 @@ def get_act_stat(model, dataloader, accumulate_type='max', prefixed_tokens=None,
         else:
             act_stat[key_name] = comming_max
 
+    def stat_whole_input_hook(name, tensor, type):
+        key_name = f"{name}.{type}"
+        act_stat[key_name] = tensor.float().cpu()
+
     def stat_input_hook(m, x, y, name):
         if 'apply_rotary_pos_emb_qk_rotation_wrapper' in name:
             input_Q = x[0].transpose(1, 2).flatten(-2)
@@ -72,6 +91,12 @@ def get_act_stat(model, dataloader, accumulate_type='max', prefixed_tokens=None,
                 x_ = hadamard_utils.matmul_hadU_cuda(x_, had_K, K)
             stat_tensor(name, x_, 'input')
             stat_tensor(name, y_, 'output')
+            
+    def stat_block_input_hook(m, x, y, name):
+        # print("len(x):",len(x))
+        # print("x[0].shape:",x[0].shape)
+        x = x[0]
+        stat_whole_input_hook(name, x, 'input')
 
     hooks = []
     for name, m in model.named_modules():
@@ -79,19 +104,170 @@ def get_act_stat(model, dataloader, accumulate_type='max', prefixed_tokens=None,
         if isinstance(m, (nn.Linear,LlamaRMSNorm,RMSN,QuantLinear,QuantRMSNorm,QKRotationWrapper)):
             hooks.append(
                 m.register_forward_hook(
-                    functools.partial(stat_input_hook, name=name)))
+                    functools.partial(stat_input_hook, name=name))) # 扩展name参数如果stat_input_hook函数没有传入这个参数的话。
 
     for i in tqdm(range(len(dataloader)), desc='obtain activation stat'):
         data = dataloader[i][0]
         if prefixed_tokens is not None:
             data = torch.cat([torch.tensor([prefixed_tokens]),data],dim=1)
+            # print("data.shape:",data.shape)
         model(data.to(device))
 
     for h in hooks:
         h.remove()
-
+        
+    for name, m in model.named_modules():
+        if isinstance(m, LlamaDecoderLayer):
+            hooks.append(
+                    m.register_forward_hook(
+                        functools.partial(stat_block_input_hook, name=name)))
+    data = [dataloader[i][0] for i in range(len(dataloader))]
+    # list to tensor
+    data = torch.cat(data,dim=0)
+    # print("data.shape:",data.shape)
+    prefixed_tokens_tensor = torch.tensor([prefixed_tokens])
+    # print("prefixed_tokens_tensor.shape:",prefixed_tokens_tensor.shape)
+    prefixed_tokens_tensor = prefixed_tokens_tensor.repeat(data.shape[0],1)
+    # print("prefixed_tokens_tensor.shape:",prefixed_tokens_tensor.shape)
+    if prefixed_tokens is not None:
+        data = torch.cat((prefixed_tokens_tensor,data),dim=1)
+    print("cal_data.shape:",data.shape)
+    print("model.device:",device)
+    model(data.to(device))
+    for h in hooks:
+        h.remove()
+    print("act_stat.keys():",act_stat.keys())
+    # exit(0)
     return act_stat
 
+def get_grad_stat(model, dataloader,logger, prefixed_tokens=None):
+    print("begin get_grad_stat")
+    model.train()
+    for param in model.parameters():
+        param.requires_grad = True
+    device = next(model.parameters()).device
+
+    def backward_hook(module, grad_input, grad_output, name):
+        if not hasattr(module, 'output_grad'):
+            module.output_grad = grad_output[0]
+            logger.info(f"{name}.output_grad.shape:{module.output_grad.shape}")
+            logger.info(f"{name}.output_grad.abs().max():{module.output_grad.abs().max()}")
+        else:
+            module.output_grad += grad_output[0]
+            logger.info(f"{name}.output_grad.shape:{module.output_grad.shape}")
+            logger.info(f"{name}.output_grad.abs().max():{module.output_grad.abs().max()}")
+
+    hooks = []
+        
+    for name, m in model.named_modules():
+        if isinstance(m, LlamaDecoderLayer):
+            hooks.append(
+                    m.register_backward_hook(
+                        functools.partial(backward_hook, name=name)))
+    data = [dataloader[i][0] for i in range(len(dataloader))]
+    # list to tensor
+    data = torch.cat(data,dim=0)
+    prefixed_tokens_tensor = torch.tensor([prefixed_tokens])
+    prefixed_tokens_tensor = prefixed_tokens_tensor.repeat(data.shape[0],1)
+    if prefixed_tokens is not None:
+        data = torch.cat((prefixed_tokens_tensor,data),dim=1)
+    print("cal_data.shape:",data.shape)
+    print("model.device:",device)
+    labels = data.clone()
+    outputs = model(data.to(device),labels=labels)
+    loss = outputs.loss
+    loss.backward()
+    for h in hooks:
+        h.remove()
+    for param in model.parameters():
+        param.requires_grad = False
+    model.eval()
+    return
+
+def get_quantized_stat(model, dataloader, accumulate_type='max', prefixed_tokens=None):
+    model.eval()
+    num_heads = model.config.num_attention_heads
+    num_kv_heads = model.config.num_key_value_heads
+    model_dim = model.config.hidden_size
+    head_dim = model_dim // num_heads
+    kv_dim = num_kv_heads * head_dim
+    device = next(model.parameters()).device
+    act_stat = {}
+    prefixed_length = len(prefixed_tokens) if prefixed_tokens is not None else 0
+
+
+    def stat_whole_input_hook(name, tensor, type):
+        key_name = f"{name}.{type}"
+        act_stat[key_name] = tensor.float().cpu()
+
+    def stat_block_input_output_hook(m, x, y, name):
+        print("in name:",name)
+        # print("x[0].shape:",x[0].shape)
+        stat_whole_input_hook(name, x[0], 'input')
+        stat_whole_input_hook(name, y[0], 'output')
+    
+    def stat_block_input_hook(m, x, y, name):
+        print("in name:",name)
+        stat_whole_input_hook(name, x[0], 'input')
+        
+    def stat_block_output_hook(m, x, y, name):
+        print("in name:",name)
+        stat_whole_input_hook(name, y[0], 'output')
+        
+    def stat_weight_hook(m, x, y, name):
+        if hasattr(m, 'weight'):
+            stat_whole_input_hook(name, m.weight, 'weight')
+        if hasattr(m, 'input_quantizer'):
+            stat_whole_input_hook(name, m.input_quantizer.scale, 'input_quantizer.scale')
+            stat_whole_input_hook(name, m.input_quantizer.zero_point, 'input_quantizer.zero_point')
+        if hasattr(m, 'output_quantizer'):
+            stat_whole_input_hook(name, m.output_quantizer.scale, 'output_quantizer.scale')
+            stat_whole_input_hook(name, m.output_quantizer.zero_point, 'output_quantizer.zero_point')
+        if hasattr(m, 'k_quantizer'):
+            stat_whole_input_hook(name, m.k_quantizer.scale, 'k_quantizer.scale')
+            stat_whole_input_hook(name, m.k_quantizer.zero_point, 'k_quantizer.zero_point')
+        if hasattr(m, 'q_quantizer'):
+            stat_whole_input_hook(name, m.q_quantizer.scale, 'q_quantizer.scale')
+            stat_whole_input_hook(name, m.q_quantizer.zero_point, 'q_quantizer.zero_point')
+        if hasattr(m, 'weight_quantizer'):
+            stat_whole_input_hook(name, m.weight_quantizer.scale, 'weight_quantizer.scale')
+            stat_whole_input_hook(name, m.weight_quantizer.zero_point, 'weight_quantizer.zero_point')
+
+    hooks = []
+    for name, m in model.named_modules():
+        if "layers.3." in name:
+            print("name:",name)
+            if isinstance(m, LlamaMLP):
+                hooks.append(
+                    m.register_forward_hook(
+                        functools.partial(stat_block_input_output_hook, name=name)))
+            elif isinstance(m, LlamaAttention):
+                hooks.append(
+                    m.register_forward_hook(
+                        functools.partial(stat_block_input_output_hook, name=name)))
+            if isinstance(m, (nn.Linear,LlamaRMSNorm,RMSN,QuantLinear,QuantRMSNorm,QKRotationWrapper)):
+                hooks.append(
+                    m.register_forward_hook(
+                        functools.partial(stat_weight_hook, name=name)))
+    data = [dataloader[i][0] for i in range(len(dataloader))]
+    # list to tensor
+    data = torch.cat(data,dim=0)
+    # print("data.shape:",data.shape)
+    prefixed_tokens_tensor = torch.tensor([prefixed_tokens])
+    # print("prefixed_tokens_tensor.shape:",prefixed_tokens_tensor.shape)
+    prefixed_tokens_tensor = prefixed_tokens_tensor.repeat(data.shape[0],1)
+    # print("prefixed_tokens_tensor.shape:",prefixed_tokens_tensor.shape)
+    if prefixed_tokens is not None:
+        data = torch.cat((prefixed_tokens_tensor,data),dim=1)
+    print("cal_data.shape:",data.shape)
+    model(data.to(device))
+    for h in hooks:
+        h.remove()
+    print("act_stat.keys():",act_stat.keys())
+    torch.save(act_stat, './act_weight_stat.pth')
+    exit(0)
+    # print("act_stat['model.layers.31.input'].shape:",act_stat['model.layers.31.input'].shape)
+    return act_stat
 
 def wrap_to_quant_model(model):
     '''
@@ -218,8 +394,6 @@ def init_v_quantizer(args, model, activation_stat=None, minmax_init=True):
             sym_stat = "asymmetric" if output_asym else 'symmetric'
             print(f'v-cache quantization: set {name} as {output_bits}-bit {output_group_size} groupsize {output_mode} {sym_stat} quantization')
 
-
-    
     
 def init_k_quantizer(args, model, activation_stat=None, minmax_init=True):
     num_heads = model.config.num_attention_heads
@@ -229,6 +403,7 @@ def init_k_quantizer(args, model, activation_stat=None, minmax_init=True):
     kv_dim = num_kv_heads * head_dim
     assert args.kv_group_size in [-1, head_dim], f'Only token-wise/{head_dim}g quantization is supported for K-cache'
     # for the quantization of k/v output (kv-cache quantization)
+    # we rotate q and k in the QKRotationWrapper
     if args.k_pre_rope:
         for name, module in model.named_modules():
             if isinstance(module,int_linear_fake.QuantLinear) and 'k_proj' in name:
@@ -259,12 +434,19 @@ def init_k_quantizer(args, model, activation_stat=None, minmax_init=True):
                 output_asym = args.kv_asym
                 output_mode = args.kv_mode
                 output_stat = activation_stat[f'{name}.output_K'] if activation_stat is not None else None
+                q_output_stat = activation_stat[f'{name}.output_Q'] if activation_stat is not None else None
                 module.use_k_quant = True
                 module.k_bits = output_bits
+                module.q_bits = output_bits
                 module.online_had = args.qk_online_had
                 quantized_shape = (1,kv_dim)
                 module.k_quantizer = UniformAffineQuantizer(output_bits, quantized_shape, output_asym, output_group_size,
                                                                 quantized_item_stat=output_stat,
+                                                                quant_type='activation',
+                                                                mode=output_mode,
+                                                                minmax_init=minmax_init)
+                module.q_quantizer = UniformAffineQuantizer(output_bits, quantized_shape, output_asym, output_group_size,
+                                                                quantized_item_stat=q_output_stat,
                                                                 quant_type='activation',
                                                                 mode=output_mode,
                                                                 minmax_init=minmax_init)
@@ -666,6 +848,7 @@ def weight_parameters(model):
         # if n.find('weight') > -1 and not (n.find('scale') > -1 or n.find('zero_point') > -1):
         if n.find('weight') > -1 and not (n.find('weight_quantizer') > -1):
             params.append(m)
+            print(n)
     return iter(params)
     
 def set_scale_parameters(model, requires_grad):
@@ -686,14 +869,23 @@ def set_quant_parameters(model, requires_grad):
     params = []
     for n, m in model.named_parameters():
         # if (n.find('scale') > -1 or n.find('zero_point') > -1) and (not n.find('smooth_scale') > -1):
-        if (n.find('scale') > -1 or n.find('zero_point') > -1 or n.find('bound_factor') > -1)  and (not (n.find('in_scale') > -1 or n.find('out_scale') > -1)):
+        if (n.find('scale') > -1 or n.find('zero_point') > -1 or n.find('bound_factor') > -1 or n.find('zp_factor') > -1)  and (not (n.find('in_scale') > -1 or n.find('out_scale') > -1)):
             m.requires_grad = requires_grad
     return iter(params)  
 
-def quant_parameters(model):
+def quant_parameters(model, no_scale=False):
     params = []
     for n, m in model.named_parameters():
-        if (n.find('scale') > -1 or n.find('zero_point') > -1 or n.find('bound_factor') > -1) and (not (n.find('in_scale') > -1 or n.find('out_scale') > -1)):
+        if (n.find('zero_point') > -1 or n.find('bound_factor') > -1) and (not (n.find('in_scale') > -1 or n.find('out_scale') > -1)):
+            params.append(m)
+        if n.find('scale') > -1 and not no_scale:
+            params.append(m)
+    return iter(params)  
+
+def quant_extra_parameters(model):
+    params = []
+    for n, m in model.named_parameters():
+        if n.find('zp_factor') > -1:
             params.append(m)
     return iter(params)  
 

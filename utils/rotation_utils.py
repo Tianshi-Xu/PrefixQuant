@@ -311,7 +311,7 @@ def register_online_rotation(module, Q:torch.Tensor):
     # If we implement in the forward() the un-rotated original input will be captured.
     module.rotate_handle = module.register_forward_pre_hook(online_rotate)
 
-
+# add Q quantization
 class QKRotationWrapper(torch.nn.Module):
 
     def __init__(self, func, config, online_had, *args, **kwargs):
@@ -326,10 +326,13 @@ class QKRotationWrapper(torch.nn.Module):
         self.func = func
         self.online_had = online_had
         self.use_k_quant = False
+        self.use_q_quant = False
         self.k_bits = 16
+        self.q_bits = 16
         
     def set_quant_state(self, weight_quant: bool = False, act_quant: bool = False):
         self.use_k_quant = act_quant
+        self.use_q_quant = act_quant
 
     def forward(self, *args, **kwargs):
         q, k = self.func(*args, **kwargs)
@@ -342,6 +345,9 @@ class QKRotationWrapper(torch.nn.Module):
         if self.use_k_quant and self.k_bits < 16:
             k = k.transpose(1, 2).flatten(-2)
             k = self.k_quantizer(k).reshape((bsz, seq_len, num_heads, head_dim)).transpose(1, 2).to(q)
+        if self.use_q_quant and self.k_bits < 16:
+            q = q.transpose(1, 2).flatten(-2)
+            q = self.q_quantizer(q).reshape((bsz, seq_len, num_heads, head_dim)).transpose(1, 2).to(q)
         return q, k
 
 

@@ -2,8 +2,7 @@ import torch
 import torch.nn as nn
 import quantize.int_linear_fake as int_linear_fake
 import quantize.int_linear_real as int_linear_real
-from quantize.recon_loss import get_recon_loss
-
+from quantize.recon_loss import get_recon_loss, get_negative_penalty_loss
 from torch.optim.lr_scheduler import CosineAnnealingLR
 import math
 import gc
@@ -11,13 +10,13 @@ from utils.quant_utils import (
     quant_parameters,weight_parameters,trainable_parameters,
     set_quant_state,quant_inplace,set_quant_parameters,
     set_weight_parameters,trainable_parameters_num,get_named_linears,set_op_by_name,
-    mse_init)
+    mse_init,quant_extra_parameters)
 import time
 from utils.train_utils import NativeScalerWithGradNormCount
 from utils.data_utils import BlockTrainDataset, copy_block_dataset
 from contextlib import nullcontext
 from utils.model_utils import get_kv_cache, mv_kv_cache
-
+from quantize.quantizer import UniformAffineQuantizer
 
 @torch.no_grad()
 def update_dataset(layer, source_dataset, target_dataset, dev, attention_mask, position_ids, prefixed_key_values):
@@ -42,15 +41,15 @@ def train_one_epoch(qlayer, prefixed_key_values, attention_mask, position_ids,
                                 past_key_value=past_key_value)[0]
             if training_target == 'fp_input':
                 label = fp_inps_with_fp[index].to(dev)
-                loss = loss_func(quant_out, label)
+                loss = loss_func(quant_out, label, qlayer if hasattr(loss_func, 'penalty_weight') else None)
             elif training_target == 'quant_input':
                 label = fp_inps_with_quant[index].to(dev)
-                loss = loss_func(quant_out, label)
+                loss = loss_func(quant_out, label, qlayer if hasattr(loss_func, 'penalty_weight') else None)
             elif training_target == 'both':
                 label_1 = fp_inps_with_quant[index].to(dev)
-                loss_1 = loss_func(quant_out, label_1)
+                loss_1 = loss_func(quant_out, label_1, qlayer if hasattr(loss_func, 'penalty_weight') else None)
                 label_2 = fp_inps_with_fp[index].to(dev)
-                loss_2 = loss_func(quant_out, label_2)
+                loss_2 = loss_func(quant_out, label_2, qlayer if hasattr(loss_func, 'penalty_weight') else None)
                 loss = 1/2 * (loss_1 + loss_2)
         if not math.isfinite(loss.item()):
             print("Loss is NAN, stopping training")
@@ -77,15 +76,15 @@ def eval_one_epoch(qlayer, prefixed_key_values, attention_mask, position_ids,
                                 past_key_value=past_key_value)[0]
             if training_target == 'fp_input':
                 label = fp_inps_with_fp[index].to(dev)
-                loss = loss_func(quant_out, label)
+                loss = loss_func(quant_out, label, qlayer if hasattr(loss_func, 'penalty_weight') else None)
             elif training_target == 'quant_input':
                 label = fp_inps_with_quant[index].to(dev)
-                loss = loss_func(quant_out, label)
+                loss = loss_func(quant_out, label, qlayer if hasattr(loss_func, 'penalty_weight') else None)
             elif training_target == 'both':
                 label_1 = fp_inps_with_quant[index].to(dev)
-                loss_1 = loss_func(quant_out, label_1)
+                loss_1 = loss_func(quant_out, label_1, qlayer if hasattr(loss_func, 'penalty_weight') else None)
                 label_2 = fp_inps_with_fp[index].to(dev)
-                loss_2 = loss_func(quant_out, label_2)
+                loss_2 = loss_func(quant_out, label_2, qlayer if hasattr(loss_func, 'penalty_weight') else None)
                 loss = 1/2 * (loss_1 + loss_2)
         loss_list.append(loss.detach().cpu())
     loss_mean = torch.stack(loss_list).mean()
@@ -230,12 +229,17 @@ def block_ap(
     
     
     # step 6: start training    
-    loss_func = get_recon_loss(args.loss_type) 
+    if args.negative_penalty_weight > 0: # add negative penalty loss for HEQuant
+        logger.info(f"use negative penalty loss with weight {args.negative_penalty_weight}")
+        loss_func = get_negative_penalty_loss(args.loss_type, penalty_weight=args.negative_penalty_weight)
+    else:
+        loss_func = get_recon_loss(args.loss_type) 
     for block_index in range(len(layers)):
         logger.info(f"=== Start quantize blocks {block_index}===")
         qlayer = layers[block_index].to(dev)
         
         qlayer.to(dev)
+        h = []
         # obtain output of full-precision model
         if args.epochs > 0 or args.mse_init:
             set_quant_state(qlayer,weight_quant=False,act_quant=False)
@@ -275,14 +279,32 @@ def block_ap(
             set_weight_parameters(qlayer,args.weight_lr > 0)
             param = []
             if args.quant_lr > 0:
-                param.append({"params":quant_parameters(qlayer),"lr":args.quant_lr})
+                # TODO: separate zero point and scale, zero point use a high lr
+                logger.info("no_train_scale: {}".format(args.no_train_scale))
+                param.append({"params":quant_parameters(qlayer, no_scale=args.no_train_scale),"lr":args.quant_lr})
             if args.weight_lr > 0:
                 param.append({"params":weight_parameters(qlayer),"lr":args.weight_lr})
-                
-                        
+            # for zp_factor
+            if args.extra_lr > 0:
+                param.append({"params":quant_extra_parameters(qlayer),"lr":args.extra_lr})
+
+            if args.negative_penalty_weight > 0:
+                for name, module in qlayer.named_modules():
+                    if isinstance(module, UniformAffineQuantizer) and module.quant_type == 'activation':
+                        module.un_bound = args.un_bound
+                        logger.info(f"name: {name}, un_bound: {module.un_bound}")
+                        def hook_fn(module, input, output):
+                            y = module.get_int(input[0])
+                            y = y.reshape(-1,module.group_size)
+                            module.last_output = torch.relu(-y)
+                            # logger.info(f"module.last_output.shape: {module.last_output.shape}")
+                        h.append(module.register_forward_hook(hook_fn))
+                        # Initialize the last_output attribute
+                        module.last_output = None
+            
             lr_schedule = CustomLRSchedule(args, total_training_iteration)
             optimizer = torch.optim.AdamW(param, weight_decay=args.wd)
-
+            # TODO: add a loss to punish negative values
             loss_scaler = NativeScalerWithGradNormCount()
             trainable_number = trainable_parameters_num(qlayer)
             logger.info(f"trainable parameter number: {trainable_number/1e6}M")
@@ -294,9 +316,15 @@ def block_ap(
                 train_loss, gradient_norm = train_one_epoch(qlayer, prefixed_key_values, attention_mask, position_ids,
                       loss_scaler, loss_func, lr_schedule, optimizer, dev, traincast,
                       quant_train_inps, fp_train_inps_with_fp, fp_train_inps_with_quant, args.training_target)
+                # TODO: add a hook to print the lowest value and delete the hook after eval
                 val_loss = eval_one_epoch(qlayer, prefixed_key_values, attention_mask, position_ids,
                       loss_func, dev, traincast,
                       quant_val_inps, fp_val_inps_with_fp, fp_val_inps_with_quant, args.training_target)
+                if args.negative_penalty_weight > 0:
+                    for name, module in qlayer.named_modules():
+                        if isinstance(module, UniformAffineQuantizer) and module.quant_type == 'activation':
+                            logger.info(f"epoch {epoch} activation quantizer: {name}, mean scale: {module.scale.mean()}, mean zero_point: {module.zero_point.mean()}, zp_factor: {module.zp_factor.mean()}")
+                        
                 logger.info(f"blocks {block_index} epoch {epoch} train_loss:{train_loss} val_loss:{val_loss}  norm:{gradient_norm:.8f} max memory_allocated {torch.cuda.max_memory_allocated(dev) / 1024**2} time {time.time()-start_time} ")
                 if val_loss < best_val_loss:
                     best_val_loss = val_loss
@@ -336,7 +364,8 @@ def block_ap(
                 logger.info(f"pack quantized {name} finished")
                 del module        
         torch.cuda.empty_cache()
-
+        for hook in h:
+                hook.remove()
     # delete cached dataset
     if args.off_load_to_disk:
         for dataset in [fp_train_inps, fp_val_inps, quant_train_inps, quant_val_inps]:

@@ -13,11 +13,16 @@ import utils.rotation_utils as rotation_utils
 from main import evaluate
 from utils.train_utils import load_json_as_namespace,create_logger
 from accelerate import init_empty_weights, infer_auto_device_map, load_checkpoint_in_model
-
+from quantize.quantizer import UniformAffineQuantizer
 
 torch.backends.cudnn.benchmark = True
 
-
+def QuantLinear_hook(m, x, y):
+    x = x[0]
+    x_int = m.input_quantizer.get_int_weight(x)
+    w_int = m.weight_quantizer.get_int_weight(m.weight)
+    print(torch.max(x_int),torch.min(x_int))
+    print(torch.max(w_int),torch.min(w_int))
 
 def main():
     import argparse
@@ -33,8 +38,6 @@ def main():
     parser.add_argument("--eval_tasks", type=str,default="", help="exampe:piqa,arc_easy,arc_challenge,hellaswag,winogrande")
     parser.add_argument("--eval_batch_size", type=int, default=16)
     parser.add_argument("--max_memory", type=str, default="70GiB",help="The maximum memory of each GPU")
-
-    
 
 
     os.environ['TOKENIZERS_PARALLELISM'] = 'false'
@@ -97,13 +100,20 @@ def main():
         logger.info('init k quantizer')
         init_k_quantizer(quant_config, model,  minmax_init=False)
 
-
-
     # model.tie_weights()
     device_map = infer_auto_device_map(model)
     print("Loading pre-computed quantized weights...")
-    load_checkpoint_in_model(model,checkpoint=args.quant_model_path,device_map=device_map,dtype=torch.float16)
+    load_checkpoint_in_model(model,checkpoint=args.quant_model_path,device_map=device_map,dtype=torch.float16,strict = False)
     model.half()    # to make sure same evaluation results with main
+    logger.info(model)
+    log2 = False
+    logger.info("log2 is :{}".format(log2))
+    for name, module in model.named_modules():
+        if isinstance(module, UniformAffineQuantizer):
+            module.log2 = log2
+            module.name = name
+            module.logger = logger
+            # logger.info(name)
     evaluate(model, tokenizer, prefixed_key_values,  args,logger)
 
 

@@ -32,6 +32,7 @@ class QuantRMSNorm(nn.Module):
 
 
     def forward(self, x):
+        # print("RMSNorm x.dtype:",x.dtype)
         if self.use_temporary_parameter:
             weight = self.temp_weight
         else:
@@ -42,11 +43,13 @@ class QuantRMSNorm(nn.Module):
             x = x.to(torch.float32)
         variance = x.pow(2).mean(-1, keepdim=True)
         x = x * torch.rsqrt(variance + self.variance_epsilon)
+        # print("RMSNorm weight.dtype:",weight.dtype)
+        
         x =  x.to(input_dtype) * weight
 
         if self.use_act_quant and self.output_bits < 16:
             x = self.output_quantizer(x)
-            
+        # print("RMSNorm x.dtype:",x.dtype)
         return x
 
     def set_quant_state(self, weight_quant: bool = False, act_quant: bool = False):

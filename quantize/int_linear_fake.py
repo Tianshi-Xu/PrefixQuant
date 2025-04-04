@@ -60,7 +60,8 @@ class QuantLinear(nn.Module):
 
         if self.use_act_quant and self.input_bits < 16:
             input = self.input_quantizer(input)
-
+        # print("input.shape:",input.shape)
+        # print("weight.shape:",weight.shape)
         out = self.fwd_func(input, weight, bias, **self.fwd_kwargs)
 
         if self.use_act_quant and self.output_bits < 16:

@@ -1,4 +1,5 @@
 from datasets import load_dataset
+import datasets
 import torch
 import random
 from tqdm import tqdm
@@ -7,6 +8,7 @@ from torch.utils.data import Dataset
 import os
 import shutil
 import time
+os.environ['HF_ENDPOINT'] = 'https://hf-mirror.com'
 
 
 def get_pile(tokenizer, train_size, val_size, seed, seqlen):
@@ -94,11 +96,19 @@ def get_c4(tokenizer, train_size, val_size, seed, seqlen, test_only):
                     },split='validation'
                     )
     except:
+        # traindata = load_dataset(
+        #     'allenai/c4', 'allenai--c4', data_files={'train': 'en/c4-train.00000-of-01024.json.gz'}, split='train'
+        # )
+        # valdata = load_dataset(
+        #     'allenai/c4', 'allenai--c4', data_files={'validation': 'en/c4-validation.00000-of-00008.json.gz'}, split='validation'
+        # )
         traindata = load_dataset(
-            'allenai/c4', 'allenai--c4', data_files={'train': 'en/c4-train.00000-of-01024.json.gz'}, split='train'
+            'json', data_files={'train': 'dataset/c4-train.00000-of-01024.json.gz'}, 
+            split='train'
         )
+        # traindata.save_to_disk('dataset/c4/train')
         valdata = load_dataset(
-            'allenai/c4', 'allenai--c4', data_files={'validation': 'en/c4-validation.00000-of-00008.json.gz'}, split='validation'
+            'json', data_files={'validation': 'dataset/c4-validation.00000-of-00008.json.gz'}, split='validation'
         )
 
     random.seed(0)
@@ -232,6 +242,7 @@ def test_ppl(args, model, tokenizer,prefixed_key_values=None, datasets=['wikitex
             labels = testenc[:, (i * seqlen) : ((i + 1) * seqlen)]
             batch = batch.to(model.device)
             labels = labels.to(model.device)
+            # print("batch.shape:",batch.shape)
             outputs = model(batch,labels=labels, past_key_values=prefixed_key_values)
             neg_log_likelihood = outputs.loss * seqlen
             nlls.append(neg_log_likelihood)
@@ -335,3 +346,19 @@ def copy_block_dataset(dataset:BlockTrainDataset, cache_dir=None):
         for index, data in enumerate(dataset):
             new_dataset.update_data(index, data)
     return new_dataset
+
+
+def download_dataset():
+    traindata = load_dataset(
+        'json', data_files={'train': 'dataset/c4-train.00000-of-01024.json.gz'}, 
+        split='train'
+    )
+    # traindata.save_to_disk('dataset/c4/train')
+    valdata = load_dataset(
+        'json', data_files={'validation': 'dataset/c4-validation.00000-of-00008.json.gz'}, split='validation'
+    )
+    # valdata.save_to_disk('dataset/c4/validation')
+    print(traindata)
+    
+if __name__ == "__main__":
+    download_dataset()

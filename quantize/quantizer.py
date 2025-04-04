@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from utils.hadamard_utils import random_hadamard_matrix
-
+import numpy as np
 
 CLIPMIN = 1e-4
 
@@ -71,6 +71,8 @@ class UniformAffineQuantizer(nn.Module):
         self.disable_zero_point_in_sym = disable_zero_point_in_sym
         self.activation_clipping = activation_clipping
         self.enable = True
+        self.log2 = False
+        self.zp_factor = None
         if self.asym or not self.disable_zero_point_in_sym:
             self.qmin = 0
             self.qmax = 2 ** (n_bits) - 1
@@ -84,7 +86,7 @@ class UniformAffineQuantizer(nn.Module):
         elif quant_type == 'activation':
             self.find_activation_quant_param(quantized_item_stat,minmax_init)
 
-    @torch.no_grad()     
+    @torch.no_grad()
     def find_weight_quant_param(self, quantized_item_stat,minmax_init):
         assert len(self.quantized_shape) == 2, 'only support for linear layer'
         self.mode = 'static'
@@ -121,8 +123,8 @@ class UniformAffineQuantizer(nn.Module):
             else:
                 self.zero_point = None
             
-
     def find_activation_quant_param(self, quantized_item_stat, minmax_init):
+        # print("mode, asym:", self.mode, self.asym)
         if self.mode == 'static':
             if minmax_init:
                 x = quantized_item_stat.reshape(-1,self.group_size)
@@ -131,8 +133,9 @@ class UniformAffineQuantizer(nn.Module):
                 scale = scale.clamp(min=1e-4, max=1e4)
                 self.scale = nn.Parameter(scale)
                 if self.asym:
-                    zero_point = (2**(self.n_bits-1)-1)*torch.ones_like(self.scale)
+                    zero_point = (2**(self.n_bits-1)-1)*torch.ones_like(self.scale) # origin is -1
                     self.zero_point = nn.Parameter(zero_point)
+                    self.zp_factor = nn.Parameter(torch.ones_like(self.zero_point))
                 else:
                     if self.disable_zero_point_in_sym:
                         self.zero_point = None
@@ -146,6 +149,7 @@ class UniformAffineQuantizer(nn.Module):
                 self.scale = nn.Parameter(torch.ones((dims,1)))
                 if self.asym or not self.disable_zero_point_in_sym:
                     self.zero_point = nn.Parameter(torch.zeros((dims,1)))
+                    self.zp_factor = nn.Parameter(torch.ones_like(self.zero_point))
                 else:
                     self.zero_point = None
                     
@@ -161,13 +165,26 @@ class UniformAffineQuantizer(nn.Module):
                 self.zero_point = None
                 self.qmin = -(2 ** (self.n_bits - 1))
                 self.qmax = 2 ** (self.n_bits - 1) - 1
+        
 
     def static_fake_quant(self, x):
         '''
         static quantization
         '''
         scale = clamp_ste(self.scale,1e-4, 1e4)
-        round_zero_point = clamp_ste(round_ste(self.zero_point), self.qmin, self.qmax) if self.zero_point is not None else None
+        if self.zp_factor is not None:
+            zero_point = self.zero_point * self.zp_factor
+        else:
+            zero_point = self.zero_point
+        # print("self.zp_factor:",self.zp_factor)
+        # zero_point = 4*zero_point #larger zero point
+        
+        # if self.log2:
+        #     scale = torch.pow(2, torch.round(torch.log2(scale)))
+        #     if self.zero_point is not None:
+        #         zero_point = (self.zero_point/ self.scale) * scale
+        # round_zero_point = clamp_ste(round_ste(zero_point), self.qmin, self.qmax) if self.zero_point is not None else None
+        round_zero_point = round_ste(zero_point) if self.zero_point is not None else None
         if self.quant_type == 'weight':
             dim1, dim2 = x.shape
             x_reshaped = x.reshape(-1, self.group_size)
@@ -175,11 +192,52 @@ class UniformAffineQuantizer(nn.Module):
             bs, n, dim1 = x.shape
             x_reshaped = x.reshape(bs, n, -1, self.group_size)
 
-
+        # print("x_reshaped.device:",x_reshaped.device)
+        # print("scale.device:",scale.device)
         x_int = round_ste(x_reshaped / scale)
         if round_zero_point is not None:
             x_int = x_int.add(round_zero_point)
         x_int = x_int.clamp(self.qmin, self.qmax)
+        # if self.quant_type == 'weight':
+        #     x_int = x_int.clamp(self.qmin, self.qmax)
+        # else:
+        #     if self.un_bound:
+        #         x_int = x_int.clamp(self.qmin, max=None)
+        #     else:
+        #         x_int = x_int.clamp(self.qmin, self.qmax)
+        # use wrap instead of clamp for private inference to avoid clipping
+        # print the difference between tmp and x_int
+        # min_idx = torch.argmin(x_int)
+        # min_idx_unravel = np.unravel_index(min_idx.cpu().numpy(), x_int.shape)
+        # self.logger.info("{}:min_idx: {}".format(self.name,min_idx_unravel))
+        # self.logger.info("{}:min value: {}".format(self.name,torch.min(x_int)))
+        
+        # x_int[idx2] = 0
+        # print(x_int[idx2])
+        # print("quant_type:{}".format(self.quant_type))
+        # print("self.asym:{}".format(self.asym))
+        # print("n_bits:{}".format(self.n_bits))
+        # print("self.asym:",self.asym)
+        # print("qmin,qmax:",self.qmin,self.qmax)
+        # if self.quant_type == "activation":
+        #     idx = torch.where(x_int>self.qmax)
+        #     idx2 = torch.where(x_int<self.qmin)
+        #     x_up = x_int[idx]
+        #     x_low = x_int[idx2]
+        #     if x_up.numel() > 0:
+        #         self.logger.info("{}, max:{}".format(self.name,torch.max(x_up)))
+        #     else:
+        #         self.logger.info("{}, no overflow".format(self.name))
+        #     if x_low.numel() > 0:
+        #         self.logger.info("{}, min:{}".format(self.name,torch.min(x_low)))
+        #     else:
+        #         self.logger.info("{}, no underflow".format(self.name))
+        #     self.logger.info("{}:low overflow rate:{}".format(self.name,x_low.numel()/x_int.numel()))
+        #     self.logger.info("{}:high overflow rate:{}".format(self.name,x_up.numel()/x_int.numel()))
+        # print("-------")
+        # x_int = torch.remainder(x_int - self.qmin, self.qmax - self.qmin + 1) + self.qmin
+        # print("without clip")
+        
         x_dequant = x_int
         if round_zero_point is not None:
             x_dequant = x_dequant.sub(round_zero_point)
@@ -189,6 +247,7 @@ class UniformAffineQuantizer(nn.Module):
                 x_dequant = x_dequant.reshape(dim1, dim2)
             elif self.quant_type == 'activation':
                 x_dequant = x_dequant.reshape(bs, n, dim1)
+        # print("quant mse:{}".format(torch.mean((x-x_dequant)**2)))
         return x_dequant
 
     def custom_quant(self, x, scale, zero_point):
@@ -242,6 +301,8 @@ class UniformAffineQuantizer(nn.Module):
                 xmax = xmax * self.bound_factor 
             quant_range = 2 * xmax
         scale = (quant_range / (2**self.n_bits-1)).clamp(min=1e-4, max=1e4)
+        if self.log2:
+            scale = torch.pow(2, torch.round(torch.log2(scale)))
         round_zero_point = -(xmin/scale).round().clamp(min=-1e4, max=1e4) if self.asym else None
         x_int = round_ste(x / scale)
         if round_zero_point is not None:
@@ -255,6 +316,33 @@ class UniformAffineQuantizer(nn.Module):
             x_dequant = x_dequant.reshape(original_shape)
         return x_dequant    
         
+    def get_int(self,x):
+        scale = clamp_ste(self.scale,1e-4, 1e4)
+        # scale = self.scale
+        if self.zp_factor is not None:
+            zero_point = self.zero_point * self.zp_factor
+        else:
+            zero_point = self.zero_point
+        # if self.log2:
+        #     scale = torch.pow(2, torch.round(torch.log2(scale)))
+        #     if self.zero_point is not None:
+        #         zero_point = (self.zero_point/ self.scale) * scale
+        
+        round_zero_point = clamp_ste(round_ste(zero_point), self.qmin, self.qmax) if self.zero_point is not None else None
+        if self.quant_type == 'weight':
+            dim1, dim2 = x.shape
+            x_reshaped = x.reshape(-1, self.group_size)
+        elif self.quant_type == 'activation':
+            bs, n, dim1 = x.shape
+            x_reshaped = x.reshape(bs, n, -1, self.group_size)
+
+
+        x_int = round_ste(x_reshaped / scale)
+        if round_zero_point is not None:
+            x_int = x_int.add(round_zero_point)
+        # x_int = x_int.clamp(self.qmin, self.qmax)
+        return x_int
+    
     def deactivate(self):
         self.enable = False
         
@@ -273,6 +361,20 @@ class UniformAffineQuantizer(nn.Module):
             raise NotImplementedError
         return x_dequant
 
-        
+    def set_bw(self,bw,quantized_item_stat = None, minmax_init=True):
+        self.n_bits = bw
+        if self.asym or not self.disable_zero_point_in_sym:
+            self.qmin = 0
+            self.qmax = 2 ** (self.n_bits) - 1
+        else:
+            self.qmin = -(2 ** (self.n_bits - 1))
+            self.qmax = 2 ** (self.n_bits - 1) - 1
+        # init scale and zero point through Max-Min quantization
+        if self.quant_type == 'weight':
+            self.find_weight_quant_param(quantized_item_stat,minmax_init)
+        elif self.quant_type == 'activation':
+            self.find_activation_quant_param(quantized_item_stat,minmax_init)
+            
+        # print("self.scale.dtype:",self.scale.dtype)
 
     

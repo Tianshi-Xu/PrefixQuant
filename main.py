@@ -32,8 +32,6 @@ def evaluate(model, tokenizer,prefixed_key_values, args, logger):
             logger.info(f'{dataset} perplexity: {ppl_results[dataset]:.2f}')
             results_str += f"{ppl_results[dataset]:.2f} "
     
-
-
     if args.eval_tasks != "":
         if prefixed_key_values is not None:
             model = model_utils.WrappedPrefixCausalLM(model, prefixed_key_values)
@@ -43,11 +41,12 @@ def evaluate(model, tokenizer,prefixed_key_values, args, logger):
         task_list = args.eval_tasks.split(',')
         model = HFLM(pretrained=model, batch_size=args.eval_batch_size)
         task_manager = lm_eval.tasks.TaskManager()
+        logger.info("task_list: ", task_list)
         results = lm_eval.simple_evaluate(
-        model=model,
-        tasks=task_list,
-        num_fewshot=0,
-        task_manager=task_manager,
+            model=model,
+            tasks=task_list,
+            num_fewshot=0,
+            task_manager=task_manager,
         )
         logger.info(make_table(results))
         total_acc = 0
@@ -88,13 +87,13 @@ def main():
     parser.add_argument("--w_group_size", type=int, default=-1, help="quantization group size")
     parser.add_argument("--w_asym", dest="w_asym", action="store_true", help="Set w_asym to True")
     parser.add_argument("--w_sym", dest="w_asym", action="store_false", help="Set w_asym to False")
-    parser.set_defaults(w_asym=False)
+    # parser.set_defaults(w_asym=False)
     parser.add_argument("--input_bits", type=int, default=16, help="quantization bits")
     parser.add_argument("--input_group_size", type=int, default=-1, help="quantization group size")
     parser.add_argument("--input_mode", type=str, default='dynamic',help="quantization type")
     parser.add_argument("--input_asym", dest="input_asym", action="store_true", help="Set input_asym to True")
     parser.add_argument("--input_sym", dest="input_asym", action="store_false", help="Set input_asym to False")
-    parser.set_defaults(input_asym=False)
+    # parser.set_defaults(input_asym=True)
     parser.add_argument("--k_bits", type=int, default=16,help="")
     parser.add_argument("--v_bits", type=int, default=16,help="")
     parser.add_argument("--kv_group_size", type=int, default=128,help="default as head-wise")
@@ -102,7 +101,7 @@ def main():
     parser.add_argument("--kv_mode", type=str, default='dynamic',help="quantization type")
     parser.add_argument("--kv_asym", dest="kv_asym", action="store_true", help="Set kv_asym to True")
     parser.add_argument("--kv_sym", dest="kv_asym", action="store_false", help="Set kv_asym to False")
-    parser.set_defaults(kv_asym=False)
+    # parser.set_defaults(kv_asym=True)
     parser.add_argument("--mse_init", action="store_true", help="init step size through MSE instead of MIN-MAX")
     parser.add_argument("--asym_mse_init", action="store_true", help="init step size through MSE instead of MIN-MAX")
     parser.add_argument("--skip_qk_weight_init", action="store_true")
@@ -145,7 +144,7 @@ def main():
     parser.add_argument("--seed", type=int, default=2, help="Seed for sampling the calibration data.")
     parser.add_argument("--eval_ppl", action="store_true",help="evaluate perplexity on wikitext2 and c4 with 2048 context length")
     parser.add_argument("--eval_tasks", type=str,default="", help="exampe:piqa,arc_easy,arc_challenge,hellaswag,winogrande")
-    parser.add_argument("--eval_batch_size", type=int, default=16)
+    parser.add_argument("--eval_batch_size", type=int, default=64)
     parser.add_argument("--max_memory", type=str, default="65GiB",help="The maximum memory of each GPU")
     # ------------------ others ------------------------------------------
     parser.add_argument("--max_outlier", type=float, default=5,help="")
@@ -154,9 +153,13 @@ def main():
     parser.add_argument("--modified_index", type=int, default=0,help="")
     # ------------------ ablation ------------------------------------------
     parser.add_argument("--ablate_prefix_number", type=int, default=None,help="")
+    # ------------------ extra lr ------------------------------------------
+    parser.add_argument("--extra_lr", type=float, default=0,help="")
+    parser.add_argument("--negative_penalty_weight", type=float, default=0,help="")
+    parser.add_argument("--no_train_scale", default=False,help="")
+    parser.add_argument("--un_bound", default=False,help="")
 
     
-
 
     os.environ['TOKENIZERS_PARALLELISM'] = 'false'
     args = parser.parse_args()
@@ -188,7 +191,8 @@ def main():
         config = AutoConfig.from_pretrained(args.model_path,trust_remote_code=True)
         tokenizer = AutoTokenizer.from_pretrained(args.model_path, use_fast=False,legacy=False,trust_remote_code=True)
         dtype = torch.float16 if not args.use_fp32 else torch.float32
-        model = AutoModelForCausalLM.from_pretrained(args.model_path, config=config, device_map='cpu',torch_dtype=dtype,trust_remote_code=True)
+        model = AutoModelForCausalLM.from_pretrained(args.model_path, config=config, device_map='cpu',torch_dtype=dtype,trust_remote_code=True,use_safetensors=False)
+        # logger.info("skip rotation for fast test")
         if args.pre_rotate:
             rotation_utils.fuse_layer_norms(model)
             rotation_utils.rotate_model(model, rotate_mode=args.rotate_mode, online=args.down_online_had)
@@ -208,7 +212,6 @@ def main():
                         rope_function_name, 
                         config=model.config,
                         online_had=args.qk_online_had)   
-
         prefixed_tokens = None                
         prefixed_key_values = None
         args.prefixed_length = 0
@@ -225,13 +228,16 @@ def main():
             else:
                 original_device = 'cuda'
             cal_dataloader, _ = get_loaders(
-            args.calib_dataset,
-            tokenizer,
-            train_size=64,
-            val_size=0,
-            seed=args.seed,
-            seqlen=512,
+                args.calib_dataset,
+                tokenizer,
+                train_size=64,
+                val_size=1,
+                seed=args.seed,
+                seqlen=512,
             )
+            # logger.info("cal_dataloader:",cal_dataloader)
+            # logger.info("len(cal_dataloader):",len(cal_dataloader))
+            # exit(0)
             # get prefixed tokens
             if args.set_prefixed_tokens:
                 tick = time.time()
@@ -256,7 +262,9 @@ def main():
             if original_device == 'cpu':
                 remove_hook_from_module(model, recurse=True)
                 model = model.cpu()
-                
+        logger.info(f'args.input_asym:{args.input_asym}')
+        logger.info(f'args.kv_asym:{args.kv_asym}')
+        logger.info(f'args.w_asym:{args.w_asym}')
         # init weight quantizer
         if args.wbits < 16:
             logger.info('init weight quantizer')
@@ -276,12 +284,9 @@ def main():
         if args.k_bits < 16:
             # consistently init for wrap rope 
             logger.info('init k quantizer')
-            init_k_quantizer(args, model, activation_stat)
+            init_k_quantizer(args, model, activation_stat) # NOTE: also init q quantizer
             
         train_utils.cleanup_memory()
-
-
-
 
         # quantization
         # block_cal = (args.epoch>0 or args.mse_init)
@@ -314,7 +319,9 @@ def main():
                 torch.save(valloader, cache_valloader)    
             block_ap(model,prefixed_key_values,args,trainloader,valloader,logger)
             logger.info(time.time() - tick)
+    
     model.half()
+    logger.info(model)
     torch.cuda.empty_cache()
     if args.save_quant_dir:
         logger.info("start saving model")
@@ -326,8 +333,6 @@ def main():
         train_utils.save_dict_as_json(quant_config, os.path.join(args.save_quant_dir, 'prefixequant_config.json'))
         logger.info(f"save model to {args.save_quant_dir} success")
     evaluate(model, tokenizer, prefixed_key_values,  args,logger)
-
-
 
 if __name__ == "__main__":
     print(sys.argv)

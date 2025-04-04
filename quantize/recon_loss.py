@@ -1,5 +1,6 @@
 import torch
-
+import torch.nn as nn
+from quantize.quantizer import UniformAffineQuantizer
 
 def clamp_mse(outlier_threshold=50):
     def func(output, label):
@@ -51,3 +52,41 @@ def get_recon_loss(loss_type, prefixed=False, prefix_length=0):
     else:
         raise NotImplementedError
     return loss_func
+
+
+class NegativeActivationPenaltyLoss(nn.Module):
+    def __init__(self, base_loss_fn, penalty_weight=0.1):
+        super().__init__()
+        self.base_loss_fn = base_loss_fn
+        self.penalty_weight = penalty_weight
+        
+    def forward(self, output, target, model=None):
+        base_loss = self.base_loss_fn(output, target)
+        
+        # If no model is provided, return only the base loss
+        if model is None:
+            return base_loss
+            
+        # Collect negative activation penalties
+        neg_penalty = 0.0
+        for name, module in model.named_modules():
+            if isinstance(module, UniformAffineQuantizer) and hasattr(module, 'last_output'):
+                # print(name)
+                # Calculate penalty for negative values: sum of squares of negative values
+                # print("module.last_output.shape", module.last_output.shape)
+                tmp_max = torch.max(module.last_output)
+                
+                # print("group_size", module.group_size)
+                # print(name)
+                # print("tmp_max.shape", tmp_max.shape)
+                neg_penalty += tmp_max**2
+        print(f"neg_penalty: {neg_penalty}")
+        print(f"negative_penalty_weight*neg_penalty: {self.penalty_weight*neg_penalty}")
+        print(f"base_loss: {base_loss}")
+        # exit(0)
+        total_loss = base_loss + self.penalty_weight * neg_penalty
+        return total_loss
+
+def get_negative_penalty_loss(base_loss_type, penalty_weight=0.1):
+    base_loss = get_recon_loss(base_loss_type)
+    return NegativeActivationPenaltyLoss(base_loss, penalty_weight)
