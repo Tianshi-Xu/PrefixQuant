@@ -146,8 +146,8 @@ def main():
         model = AutoModelForCausalLM.from_pretrained(args.model_path, config=config, device_map='cpu',torch_dtype=dtype,trust_remote_code=True,use_safetensors=False)
         if args.pre_rotate:
             rotation_utils.fuse_layer_norms(model)
-            logger.info("skip rotate_model")
-            # rotation_utils.rotate_model(model, rotate_mode=args.rotate_mode, online=args.down_online_had)
+            # logger.info("skip rotate_model")
+            rotation_utils.rotate_model(model, rotate_mode=args.rotate_mode, online=args.down_online_had)
             model.half()
         for param in model.parameters():
             param.requires_grad = False
@@ -250,6 +250,7 @@ def main():
             grad[name] = module.output_grad
     torch.save(grad, "llama2-7b-grad.pth")
     print("begin ILP")
+    exit(0)
     ILP(args,model,logger,activation_stat)
 
 
