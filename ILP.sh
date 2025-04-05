@@ -1,5 +1,5 @@
 # ILP
-CUDA_VISIBLE_DEVICES=3 python ILP.py \
+CUDA_VISIBLE_DEVICES=5 python ILP.py \
 --model_path ~/models/llama2_7b  \
 --model_name Llama-2-7b-hf \
 --output_dir ./log/llama-2-7b-ILP-test \

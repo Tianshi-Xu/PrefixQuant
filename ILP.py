@@ -21,6 +21,7 @@ from pulp import LpVariable,LpProblem,LpInteger,LpMinimize,GLPK_CMD,LpStatus,val
 from transformers.models.llama.modeling_llama import LlamaDecoderLayer
 import utils.model_utils as model_utils
 import utils.rotation_utils as rotation_utils
+from quantize.quantizer import UniformAffineQuantizer
 torch.backends.cudnn.benchmark = True
 
 def main():
@@ -143,7 +144,7 @@ def main():
         config = AutoConfig.from_pretrained(args.model_path,trust_remote_code=True)
         tokenizer = AutoTokenizer.from_pretrained(args.model_path, use_fast=False,legacy=False,trust_remote_code=True)
         dtype = torch.float16 if not args.use_fp32 else torch.float32
-        model = AutoModelForCausalLM.from_pretrained(args.model_path, config=config, device_map='cpu',torch_dtype=dtype,trust_remote_code=True,use_safetensors=False)
+        model = AutoModelForCausalLM.from_pretrained(args.model_path, config=config, device_map='cpu',torch_dtype=dtype,trust_remote_code=True,use_safetensors=True)
         if args.pre_rotate:
             rotation_utils.fuse_layer_norms(model)
             # logger.info("skip rotate_model")
@@ -212,7 +213,7 @@ def main():
             if include_static:
                 # assert args.input_mode == "static" or args.kv_mode == "static","mse_init require static quantization"
                 activation_stat = get_act_stat(model, cal_dataloader, 'max', prefixed_tokens, args.down_online_had)
-                get_grad_stat(model, cal_dataloader,logger=logger, prefixed_tokens=prefixed_tokens)
+                # get_grad_stat(model, cal_dataloader,logger=logger, prefixed_tokens=prefixed_tokens)
             if original_device == 'cpu':
                 remove_hook_from_module(model, recurse=True)
                 model = model.cpu()
@@ -311,7 +312,7 @@ def cal_latency(HW,C,K,t):
     # if plaintext bitwidth > 26-bit, there should be 2 RNS
     if t > 26:
         la_compute = la_compute*RNS_scale
-    print("la_compute,la_comm:",la_compute,la_comm)
+    # print("la_compute,la_comm:",la_compute,la_comm)
     return torch.tensor(la_compute + la_comm).item()
 
 # find the minimum latency given layer dimension and accumulation bitwidth and t_min
@@ -323,20 +324,20 @@ def find_min_latency_per_layer(layer,HW,C,K,bw,ba,t_min,b_acc=None):
         # print("HW,C,K,bw,ba,t_min:",HW,C,K,bw,ba,t_min)
         layer.weight_quantizer.set_bw(bw,layer.weight)
         weight_int = layer.weight_quantizer.get_int(layer.weight)
-        print("weight_int.shape:",weight_int.shape)
+        # print("weight_int.shape:",weight_int.shape)
         # b_acc = int(ba + torch.max(torch.ceil(torch.log2(torch.sum(torch.abs(weight_int),dim=(1,2,3))))))
         weight_neg = torch.where(weight_int < 0, weight_int, torch.zeros_like(weight_int))
         weight_pos = torch.where(weight_int > 0, weight_int, torch.zeros_like(weight_int))
         # print("weight_neg:",weight_neg)
         # print("weight_pos:",weight_pos)
-        print("weight_neg.shape:",weight_neg.shape)
-        print("weight_pos.shape:",weight_pos.shape)
+        # print("weight_neg.shape:",weight_neg.shape)
+        # print("weight_pos.shape:",weight_pos.shape)
         weight_neg = torch.sum(torch.abs(weight_neg),dim=1,keepdim=True)
         weight_pos = torch.sum(weight_pos,dim=1,keepdim=True)
         weight_max = torch.max(weight_neg,weight_pos)
-        print("weight_max.shape:",weight_max.shape)
+        # print("weight_max.shape:",weight_max.shape)
         b_acc = int(ba + torch.max(torch.ceil(torch.log2(weight_max))))
-        print("b_acc:",b_acc)
+        # print("b_acc:",b_acc)
         # print("bw+ba+e:",bw+ba+layer.e) 
     b = math.ceil(t_min/b_acc)
     if b==1:
@@ -344,17 +345,17 @@ def find_min_latency_per_layer(layer,HW,C,K,bw,ba,t_min,b_acc=None):
     latency1 = cal_latency(math.ceil(HW/b),C,K,b*b_acc)
     latency2 = cal_latency(HW,math.ceil(C/b),K,b*b_acc)
     latency3 = cal_latency(HW,C,math.ceil(K/b),b*b_acc)
-    print("latency1,latency2,latency3:",latency1,latency2,latency3)
+    # print("latency1,latency2,latency3:",latency1,latency2,latency3)
     return min(latency1,latency2,latency3)
 
 def find_min_latency_QK(HW,C,K,bw,ba,t_min,b_acc=None):
-    print("HW,C,K,bw,ba,t_min:",HW,C,K,bw,ba,t_min)
+    # print("HW,C,K,bw,ba,t_min:",HW,C,K,bw,ba,t_min)
     # estimate b_acc with the weight
     if b_acc is None:
         # print(layer)
         # print("HW,C,K,bw,ba,t_min:",HW,C,K,bw,ba,t_min)
         b_acc = bw+ba+torch.ceil(torch.log2(torch.tensor(C)))
-        print("b_acc:",b_acc)
+        # print("b_acc:",b_acc)
         # print("bw+ba+e:",bw+ba+layer.e) 
     b = math.ceil(t_min/b_acc)
     if b==1:
@@ -362,7 +363,7 @@ def find_min_latency_QK(HW,C,K,bw,ba,t_min,b_acc=None):
     latency1 = cal_latency(math.ceil(HW/b),C,K,b*b_acc)
     latency2 = cal_latency(HW,math.ceil(C/b),K,b*b_acc)
     latency3 = cal_latency(HW,C,math.ceil(K/b),b*b_acc)
-    print("latency1,latency2,latency3:",latency1,latency2,latency3)
+    # print("latency1,latency2,latency3:",latency1,latency2,latency3)
     return 2*min(latency1,latency2,latency3)
 
 # return the latency of a transformer block with ba and bw
@@ -402,48 +403,26 @@ def cal_b_acc_per_block(transformer_block,bw,ba):
             b_acc = int(ba + torch.max(torch.ceil(torch.log2(weight_max))))
             max_b_acc = max(max_b_acc,b_acc)
     b_acc_qk = bw+ba+torch.ceil(torch.log2(torch.tensor(hidden_dim)))
-    print("b_acc_qk:",b_acc_qk)
-    print("max_b_acc:",max_b_acc)
+    # print("b_acc_qk:",b_acc_qk)
+    # print("max_b_acc:",max_b_acc)
     return max(max_b_acc,b_acc_qk)
 
 # need to collect the mean of input X and conduct the block-wise reconstruction
 # compute |Z'-Z|*H*|Z'-Z|^T, where Z is the output of the block,H is the mean of Hessian matrix
 # Z = layer(X,W), Z' = layer(X',W'), X', W' are the quantized X and W
 # in the cal dataset, we use the mean of input X to conduct the block-wise reconstruction for efficiency, instead of use X_i one by one
-def cal_sensitivity_per_block(transformer_block,layer_name,activation_stat,bw,ba):
+# TODO: use mse init
+def cal_sensitivity_per_block(transformer_block,layer_name,activation_stat,bw,ba,logger,grad_stat=None):
     X = activation_stat[f'{layer_name}.input']
     X = X.half().cuda()
     transformer_block.half().cuda()
-    print("transformer block name:",layer_name)
+    logger.info(f"transformer block name:{layer_name}")
+    # print("transformer block name:",layer_name)
     # print("X.dtype:",X.dtype)
     # print("X.device:",X.device)
     for name,module in transformer_block.named_modules():
-        if isinstance(module,QuantLinear):
-            if 'q_proj' in name:
-                module.weight_quantizer.n_bits = 16
-            elif 'k_proj' in name:
-                module.weight_quantizer.n_bits = 16
-            elif 'v_proj' in name:
-                module.weight_quantizer.n_bits = 16
-                module.output_quantizer.n_bits = 16
-            elif 'o_proj' in name:
-                module.weight_quantizer.n_bits = 16
-                module.input_quantizer.n_bits = 16
-            elif 'gate_proj' in name:
-                module.weight_quantizer.n_bits = 16
-            elif 'up_proj' in name:
-                module.weight_quantizer.n_bits = 16
-            elif 'down_proj' in name:
-                module.weight_quantizer.n_bits = 16
-                module.input_quantizer.n_bits = 16
-            else:
-                raise ValueError(f"Unknown layer: {name}")
-                
-        elif isinstance(module,QuantRMSNorm):
-            module.output_quantizer.n_bits = 16
-        elif isinstance(module,QKRotationWrapper):
-            module.q_quantizer.n_bits = 16
-            module.k_quantizer.n_bits = 16
+        if isinstance(module,UniformAffineQuantizer):
+            module.n_bits = 16
     Z = transformer_block(X)[0]
     for name,module in transformer_block.named_modules():
         if isinstance(module,QuantLinear):
@@ -453,30 +432,41 @@ def cal_sensitivity_per_block(transformer_block,layer_name,activation_stat,bw,ba
                 module.weight_quantizer.set_bw(bw,module.weight.data)
             elif 'v_proj' in name:
                 module.weight_quantizer.set_bw(bw,module.weight.data)
-                module.output_quantizer.set_bw(ba,activation_stat[f'{layer_name}.{name}.output'].half())
+                module.output_quantizer.set_bw(ba,activation_stat[f'{layer_name}.{name}.output'].half().cuda())
             elif 'o_proj' in name:
                 module.weight_quantizer.set_bw(bw,module.weight.data)
-                module.input_quantizer.set_bw(ba,activation_stat[f'{layer_name}.{name}.input'].half())
+                module.input_quantizer.set_bw(ba,activation_stat[f'{layer_name}.{name}.input'].half().cuda())
             elif 'gate_proj' in name:
                 module.weight_quantizer.set_bw(bw,module.weight.data)
             elif 'up_proj' in name:
                 module.weight_quantizer.set_bw(bw,module.weight.data)
             elif 'down_proj' in name:
                 module.weight_quantizer.set_bw(bw,module.weight.data)
-                module.input_quantizer.set_bw(ba,activation_stat[f'{layer_name}.{name}.input'].half())
+                module.input_quantizer.set_bw(ba,activation_stat[f'{layer_name}.{name}.input'].half().cuda())
             else:
                 raise ValueError(f"Unknown layer: {name}")
                 
         elif isinstance(module,QuantRMSNorm):
-            module.output_quantizer.set_bw(ba,activation_stat[f'{layer_name}.{name}.output'].half())
+            module.output_quantizer.set_bw(ba,activation_stat[f'{layer_name}.{name}.output'].half().cuda())
+            # module.output_quantizer.n_bits = 16
+            # x1 = module(X)
+            # if "input_layernorm" in name:
+            #     for bit in range(2,7):
+            #         module.output_quantizer.set_bw(bit,activation_stat[f'{layer_name}.{name}.output'].half().cuda())
+            #         # module.cuda()
+            #         x2 = module(X)
+            #         logger.info(f"{layer_name}.{name}.n_bits:{module.output_quantizer.n_bits}, MSE:{torch.mean((x1-x2)**2)}")
         elif isinstance(module,QKRotationWrapper):
-            module.q_quantizer.set_bw(bw,activation_stat[f'{layer_name}.{name}.output_Q'].half())
-            module.k_quantizer.set_bw(bw,activation_stat[f'{layer_name}.{name}.output_K'].half())
+            module.q_quantizer.set_bw(ba,activation_stat[f'{layer_name}.{name}.output_Q'].half().cuda())
+            module.k_quantizer.set_bw(ba,activation_stat[f'{layer_name}.{name}.output_K'].half().cuda())
     transformer_block.cuda()
     # X = X.cuda()
     Z_prime = transformer_block(X)[0]
-    print("torch.mean((Z-Z_prime)**2):",torch.mean((Z-Z_prime)**2))
-    sensitivity = torch.sum(((Z-Z_prime)**2) * ((transformer_block.output_grad * 10) **2)) # multiply 10 to avoid 0
+    logger.info(f"{layer_name},bw:{bw},ba:{ba},mean((Z-Z_prime)**2):{torch.mean((Z-Z_prime)**2)}")
+    if grad_stat is not None:
+        sensitivity = torch.sum(((Z-Z_prime)**2) * ((grad_stat[layer_name] * 1e3) **2)) # multiply 1e3 to avoid 0
+    else:
+        sensitivity = torch.sum(((Z-Z_prime)**2))* ((transformer_block.output_grad * 1e3) **2)
     return sensitivity.item()
 
 def ILP(args,model,logger,activation_stat):
@@ -486,7 +476,7 @@ def ILP(args,model,logger,activation_stat):
     cir_idx = []
     wb_list = [2,3,4,5,6]
     ab_list = [2,3,4,5,6]
-    
+    grad_stat = torch.load("llama2-7b-grad.pth")
     sensitivity = {}
     logger.info("target_bw:"+str(target_bw))
     t_min = 18
@@ -501,11 +491,14 @@ def ILP(args,model,logger,activation_stat):
         latency_accumulation = torch.load(args.acc_la_path)
     for name,layer in model.named_modules():
         if isinstance(layer, LlamaDecoderLayer):
+            # if "layers.1" not in name:
+            #     print("name:",name)
+            #     continue
             cir_idx.append(idx)
             
             for wb in wb_list:
                 for ab in ab_list:
-                    sensitivity["w"+str(wb)+"a"+str(ab)].append(cal_sensitivity_per_block(layer,name,activation_stat,wb,ab))
+                    sensitivity["w"+str(wb)+"a"+str(ab)].append(cal_sensitivity_per_block(layer,name,activation_stat,wb,ab,logger,grad_stat))
                     logger.info("idx:"+str(idx)+"sensitivity_w"+str(wb)+"a"+str(ab)+":"+str(sensitivity["w"+str(wb)+"a"+str(ab)][-1]))
             # logger.info("d1:"+str(layer.d1))
             if latency_accumulation["b6"] == 0:
@@ -540,7 +533,7 @@ def ILP(args,model,logger,activation_stat):
                 for ab in ab_list:
                     total_bw = cal_b_acc_per_block(layer,wb,ab)
                     total_bw = int(total_bw)
-                    print("total_bw:",total_bw)
+                    # print("total_bw:",total_bw)
                     if tmp is None:
                         tmp = variable[f"wb{wb}ab{ab}_{idx}"]*latency_accumulation[f"b{total_bw}"]
                     else:
