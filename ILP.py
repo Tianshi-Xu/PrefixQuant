@@ -245,12 +245,12 @@ def main():
     logger.info(model)
     torch.cuda.empty_cache()
     grad = {}
-    for name,module in model.named_modules():
-        if isinstance(module,LlamaDecoderLayer):
-            grad[name] = module.output_grad
-    torch.save(grad, "llama2-7b-grad.pth")
-    print("begin ILP")
-    exit(0)
+    # for name,module in model.named_modules():
+    #     if isinstance(module,LlamaDecoderLayer):
+    #         grad[name] = module.output_grad
+    # torch.save(grad, "llama2-7b-grad.pth")
+    # print("begin ILP")
+    # exit(0)
     ILP(args,model,logger,activation_stat)
 
 
