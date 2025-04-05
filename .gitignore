@@ -2,3 +2,4 @@
 pre_quantized_models/*
 log/*
 dataset/*
+fast-hadmard-transform
