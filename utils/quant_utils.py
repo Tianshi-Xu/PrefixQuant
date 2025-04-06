@@ -124,12 +124,9 @@ def get_act_stat(model, dataloader, accumulate_type='max', prefixed_tokens=None,
     data = [dataloader[i][0] for i in range(len(dataloader))]
     # list to tensor
     data = torch.cat(data,dim=0)
-    # print("data.shape:",data.shape)
-    prefixed_tokens_tensor = torch.tensor([prefixed_tokens])
-    # print("prefixed_tokens_tensor.shape:",prefixed_tokens_tensor.shape)
-    prefixed_tokens_tensor = prefixed_tokens_tensor.repeat(data.shape[0],1)
-    # print("prefixed_tokens_tensor.shape:",prefixed_tokens_tensor.shape)
     if prefixed_tokens is not None:
+        prefixed_tokens_tensor = torch.tensor([prefixed_tokens])
+        prefixed_tokens_tensor = prefixed_tokens_tensor.repeat(data.shape[0],1)
         data = torch.cat((prefixed_tokens_tensor,data),dim=1)
     print("cal_data.shape:",data.shape)
     print("model.device:",device)
@@ -167,9 +164,9 @@ def get_grad_stat(model, dataloader,logger, prefixed_tokens=None):
     data = [dataloader[i][0] for i in range(len(dataloader))]
     # list to tensor
     data = torch.cat(data,dim=0)
-    prefixed_tokens_tensor = torch.tensor([prefixed_tokens])
-    prefixed_tokens_tensor = prefixed_tokens_tensor.repeat(data.shape[0],1)
     if prefixed_tokens is not None:
+        prefixed_tokens_tensor = torch.tensor([prefixed_tokens])
+        prefixed_tokens_tensor = prefixed_tokens_tensor.repeat(data.shape[0],1)
         data = torch.cat((prefixed_tokens_tensor,data),dim=1)
     print("cal_data.shape:",data.shape)
     print("model.device:",device)
@@ -714,6 +711,7 @@ def block_mse_init_dynamic(quantizer, qblock, prefixed_key_values, dev, data_inp
         best_clip_factor = best_bound_factor.item()
     return best_clip_factor, best_loss
 
+# qblock is a llama block
 @torch.no_grad()
 def mse_init(qblock, prefixed_key_values, dev, data_inputs, attention_mask, position_ids, logger, args, data_gt_asym=None):
 # def mse_init(qblock, prefixed_key_values, dev, data_inputs, position_ids, logger, args):
@@ -793,6 +791,15 @@ def mse_init(qblock, prefixed_key_values, dev, data_inputs, attention_mask, posi
                 else:
                     best_clip_factor, best_loss = block_mse_init_static(module.k_quantizer, qblock, prefixed_key_values, dev, data_inputs, data_gts, batch_attention_mask, position_ids)
                     logger.info(f"[{name}_k_quantizer] clipping factor: ({best_clip_factor:.2f}); best_loss:{best_loss} ")
+                    
+            if hasattr(module,'q_quantizer') and module.q_quantizer.mode=='static' and module.q_quantizer.n_bits<16:
+                module.q_quantizer.activate()
+                if module.q_quantizer.inc_groups > 1:
+                    best_loss = k_cache_mse_init(module,output_activation_dict[name], softmax=True)
+                    logger.info(f"[{name}_q_quantizer] best_loss:{best_loss} ")
+                else:
+                    best_clip_factor, best_loss = block_mse_init_static(module.q_quantizer, qblock, prefixed_key_values, dev, data_inputs, data_gts, batch_attention_mask, position_ids)
+                    logger.info(f"[{name}_q_quantizer] clipping factor: ({best_clip_factor:.2f}); best_loss:{best_loss} ")
             module.set_quant_state(weight_quant=True,act_quant=False)
 
             # init weight quantizer

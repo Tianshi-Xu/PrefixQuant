@@ -22,6 +22,7 @@ from transformers.models.llama.modeling_llama import LlamaDecoderLayer
 import utils.model_utils as model_utils
 import utils.rotation_utils as rotation_utils
 from quantize.quantizer import UniformAffineQuantizer
+import functools
 torch.backends.cudnn.benchmark = True
 
 def main():
@@ -113,6 +114,7 @@ def main():
     parser.add_argument("--log_name", type=str,help="")
     parser.add_argument("--cal_size", type=int, default=32,help="")
     parser.add_argument("--acc_la_path", type=str, default=None,help="")
+    parser.add_argument("--grad_stat_path", type=str, default=None,help="")
 
     os.environ['TOKENIZERS_PARALLELISM'] = 'false'
     args = parser.parse_args()
@@ -144,7 +146,7 @@ def main():
         config = AutoConfig.from_pretrained(args.model_path,trust_remote_code=True)
         tokenizer = AutoTokenizer.from_pretrained(args.model_path, use_fast=False,legacy=False,trust_remote_code=True)
         dtype = torch.float16 if not args.use_fp32 else torch.float32
-        model = AutoModelForCausalLM.from_pretrained(args.model_path, config=config, device_map='cpu',torch_dtype=dtype,trust_remote_code=True,use_safetensors=True)
+        model = AutoModelForCausalLM.from_pretrained(args.model_path, config=config, device_map='cpu',torch_dtype=dtype,trust_remote_code=True,use_safetensors=False)
         if args.pre_rotate:
             rotation_utils.fuse_layer_norms(model)
             # logger.info("skip rotate_model")
@@ -213,7 +215,8 @@ def main():
             if include_static:
                 # assert args.input_mode == "static" or args.kv_mode == "static","mse_init require static quantization"
                 activation_stat = get_act_stat(model, cal_dataloader, 'max', prefixed_tokens, args.down_online_had)
-                # get_grad_stat(model, cal_dataloader,logger=logger, prefixed_tokens=prefixed_tokens)
+                if args.grad_stat_path is None:
+                    get_grad_stat(model, cal_dataloader,logger=logger, prefixed_tokens=prefixed_tokens)
             if original_device == 'cpu':
                 remove_hook_from_module(model, recurse=True)
                 model = model.cpu()
@@ -245,14 +248,17 @@ def main():
     model.half()
     logger.info(model)
     torch.cuda.empty_cache()
-    grad = {}
-    # for name,module in model.named_modules():
-    #     if isinstance(module,LlamaDecoderLayer):
-    #         grad[name] = module.output_grad
-    # torch.save(grad, "llama2-7b-grad.pth")
-    # print("begin ILP")
+    grad_stat = {}
+    if args.grad_stat_path is None:
+        for name,module in model.named_modules():
+            if isinstance(module,LlamaDecoderLayer):
+                grad_stat[name] = module.output_grad
+        torch.save(grad_stat, args.grad_stat_path)
+    else:
+        grad_stat = torch.load(args.grad_stat_path)
+    print("begin ILP")
     # exit(0)
-    ILP(args,model,logger,activation_stat)
+    ILP(args,model,logger,activation_stat,grad_stat)
 
 
 
@@ -420,10 +426,28 @@ def cal_sensitivity_per_block(transformer_block,layer_name,activation_stat,bw,ba
     # print("transformer block name:",layer_name)
     # print("X.dtype:",X.dtype)
     # print("X.device:",X.device)
-    for name,module in transformer_block.named_modules():
-        if isinstance(module,UniformAffineQuantizer):
-            module.n_bits = 16
+    hook = []
+    act = {}
+    def stat_output_hook(module,input,output,name):
+        act[name] = output
+        
+    # for name,module in transformer_block.named_modules():
+    #     if isinstance(module,UniformAffineQuantizer) and module.quant_type == "activation":
+    #         module.n_bits = 16
+    #         hook.append(module.register_forward_hook(functools.partial(stat_output_hook, name=name)))
     Z = transformer_block(X)[0]
+    for h in hook:
+        h.remove()
+    
+    def check_mse_hook(module,input,output,name):
+        if name in act:
+            logger.info(f"{name},MSE:{torch.mean((act[name]-output)**2)}")
+    
+    # for name,module in transformer_block.named_modules():
+    #     if isinstance(module,UniformAffineQuantizer) and module.quant_type == "activation":
+    #         hook.append(module.register_forward_hook(functools.partial(check_mse_hook, name=name)))
+    
+    # for ba in range(2,7):
     for name,module in transformer_block.named_modules():
         if isinstance(module,QuantLinear):
             if 'q_proj' in name:
@@ -445,7 +469,7 @@ def cal_sensitivity_per_block(transformer_block,layer_name,activation_stat,bw,ba
                 module.input_quantizer.set_bw(ba,activation_stat[f'{layer_name}.{name}.input'].half().cuda())
             else:
                 raise ValueError(f"Unknown layer: {name}")
-                
+            
         elif isinstance(module,QuantRMSNorm):
             module.output_quantizer.set_bw(ba,activation_stat[f'{layer_name}.{name}.output'].half().cuda())
             # module.output_quantizer.n_bits = 16
@@ -459,24 +483,21 @@ def cal_sensitivity_per_block(transformer_block,layer_name,activation_stat,bw,ba
         elif isinstance(module,QKRotationWrapper):
             module.q_quantizer.set_bw(ba,activation_stat[f'{layer_name}.{name}.output_Q'].half().cuda())
             module.k_quantizer.set_bw(ba,activation_stat[f'{layer_name}.{name}.output_K'].half().cuda())
-    transformer_block.cuda()
-    # X = X.cuda()
     Z_prime = transformer_block(X)[0]
     logger.info(f"{layer_name},bw:{bw},ba:{ba},mean((Z-Z_prime)**2):{torch.mean((Z-Z_prime)**2)}")
     if grad_stat is not None:
-        sensitivity = torch.sum(((Z-Z_prime)**2) * ((grad_stat[layer_name] * 1e3) **2)) # multiply 1e3 to avoid 0
+        sensitivity = torch.sum(((Z-Z_prime)**2) * ((grad_stat[layer_name] * 1e3) **2)) # multiply 1e7 to avoid 0
     else:
         sensitivity = torch.sum(((Z-Z_prime)**2))* ((transformer_block.output_grad * 1e3) **2)
     return sensitivity.item()
 
-def ILP(args,model,logger,activation_stat):
+def ILP(args,model,logger,activation_stat,grad_stat):
     target_bw = args.budget
     idx = 0
     origin_latency = 0
     cir_idx = []
     wb_list = [2,3,4,5,6]
     ab_list = [2,3,4,5,6]
-    grad_stat = torch.load("llama2-7b-grad.pth")
     sensitivity = {}
     logger.info("target_bw:"+str(target_bw))
     t_min = 18
@@ -491,9 +512,6 @@ def ILP(args,model,logger,activation_stat):
         latency_accumulation = torch.load(args.acc_la_path)
     for name,layer in model.named_modules():
         if isinstance(layer, LlamaDecoderLayer):
-            # if "layers.1" not in name:
-            #     print("name:",name)
-            #     continue
             cir_idx.append(idx)
             
             for wb in wb_list:
@@ -508,7 +526,8 @@ def ILP(args,model,logger,activation_stat):
             # origin_latency += cal_latency_per_block(layer,args.budget,args.budget,t_min) 
             # latency_weights_b32.append(cal_latency(layer.d1,layer.in_channels,layer.out_channels,32,space))
             idx+=1
-    torch.save(latency_accumulation,f"./{args.log_name}_la.pth")
+    if args.acc_la_path is None:
+        torch.save(latency_accumulation,f"./{args.log_name}_la.pth")
     origin_latency = 90710761
     logger.info("origin_latency:"+str(origin_latency))
     # params = hessian_comp.params

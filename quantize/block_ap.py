@@ -243,7 +243,7 @@ def block_ap(
         # obtain output of full-precision model
         if args.epochs > 0 or args.mse_init:
             set_quant_state(qlayer,weight_quant=False,act_quant=False)
-            if args.training_target == 'fp_input':
+            if args.training_target == 'fp_input': # default
                 update_dataset(qlayer,fp_train_inps_with_fp, fp_train_inps_with_fp,dev,attention_mask,position_ids,prefixed_key_values)
                 update_dataset(qlayer,fp_val_inps_with_fp, fp_val_inps_with_fp,dev,attention_mask,position_ids,prefixed_key_values)
             elif args.training_target == 'quant_input':

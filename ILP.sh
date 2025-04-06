@@ -1,5 +1,5 @@
 # ILP
-CUDA_VISIBLE_DEVICES=5 python ILP.py \
+CUDA_VISIBLE_DEVICES=3 python ILP.py \
 --model_path ~/models/llama2_7b  \
 --model_name Llama-2-7b-hf \
 --output_dir ./log/llama-2-7b-ILP-test \
@@ -14,9 +14,9 @@ CUDA_VISIBLE_DEVICES=5 python ILP.py \
 --pre_rotate \
 --down_online_had \
 --qk_online_had \
---set_prefixed_tokens \
 --cal_size 16 \
 --acc_la_path ./llama-2-7b-ILP-test_la.pth \
+--grad_stat_path ./llama2-7b-grad.pth \
 --log_name llama-2-7b-ILP-test
 
 CUDA_VISIBLE_DEVICES=3 python eval.py \
