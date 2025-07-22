@@ -1,0 +1,40 @@
+[2025-07-09 23:04:54 root] (eval.py 81): INFO init weight quantizer
+[2025-07-09 23:04:54 root] (eval.py 86): INFO init input quantizer
+[2025-07-09 23:04:54 root] (eval.py 91): INFO init v quantizer
+[2025-07-09 23:04:54 root] (eval.py 97): INFO init k quantizer
+[2025-07-09 23:04:57 datasets.load] (load.py 1600): WARNING Using the latest cached version of the dataset since wikitext couldn't be found on the Hugging Face Hub
+[2025-07-09 23:04:57 datasets.packaged_modules.cache.cache] (cache.py 72): WARNING Found the latest cached dataset configuration 'wikitext-2-raw-v1' at /home/xts/.cache/huggingface/datasets/wikitext/wikitext-2-raw-v1/0.0.0/b08601e04326c79dfdd32d625aee71d232d685c3 (last modified on Thu Mar 20 16:40:22 2025).
+[2025-07-09 23:04:57 datasets.load] (load.py 1600): WARNING Using the latest cached version of the dataset since wikitext couldn't be found on the Hugging Face Hub
+[2025-07-09 23:04:57 datasets.packaged_modules.cache.cache] (cache.py 72): WARNING Found the latest cached dataset configuration 'wikitext-2-raw-v1' at /home/xts/.cache/huggingface/datasets/wikitext/wikitext-2-raw-v1/0.0.0/b08601e04326c79dfdd32d625aee71d232d685c3 (last modified on Thu Mar 20 16:40:22 2025).
+[2025-07-09 23:06:10 root] (main.py 33): INFO wikitext2 perplexity: 6.21
+[2025-07-09 23:06:12 evaluate.loading] (loading.py 546): WARNING Using the latest cached version of the module from /home/xts/.cache/huggingface/modules/evaluate_modules/metrics/evaluate-metric--exact_match/9d3b67e0c429cd7460b2b05aab53419b48eea369b73e1d9f185a56ca90c373d4 (last modified on Thu Mar 20 17:57:59 2025) since it couldn't be found locally at evaluate-metric--exact_match, or remotely on the Hugging Face Hub.
+[2025-07-09 23:06:12 lm-eval] (huggingface.py 118): WARNING `pretrained` model kwarg is not of type `str`. Many other model arguments may be ignored. Please do not launch via accelerate or use `parallelize=True` if passing an existing model this way.
+[2025-07-09 23:06:12 lm-eval] (huggingface.py 337): WARNING Passed an already-initialized model through `pretrained`, assuming single-process call to evaluate() or custom distributed integration
+[2025-07-09 23:06:15 lm-eval] (evaluator.py 131): INFO Setting random seed to 0 | Setting numpy seed to 1234 | Setting torch manual seed to 1234
+[2025-07-09 23:06:18 lm-eval] (evaluator.py 222): WARNING Overwriting default num_fewshot of winogrande from None to 0
+[2025-07-09 23:06:18 lm-eval] (evaluator.py 222): WARNING Overwriting default num_fewshot of hellaswag from None to 0
+[2025-07-09 23:06:18 lm-eval] (evaluator.py 222): WARNING Overwriting default num_fewshot of arc_challenge from None to 0
+[2025-07-09 23:06:18 lm-eval] (evaluator.py 222): WARNING Overwriting default num_fewshot of arc_easy from None to 0
+[2025-07-09 23:06:18 lm-eval] (evaluator.py 222): WARNING Overwriting default num_fewshot of piqa from None to 0
+[2025-07-09 23:06:18 lm-eval] (task.py 395): INFO Building contexts for winogrande on rank 0...
+[2025-07-09 23:06:18 lm-eval] (task.py 395): INFO Building contexts for hellaswag on rank 0...
+[2025-07-09 23:06:21 lm-eval] (task.py 395): INFO Building contexts for arc_challenge on rank 0...
+[2025-07-09 23:06:21 lm-eval] (task.py 395): INFO Building contexts for arc_easy on rank 0...
+[2025-07-09 23:06:23 lm-eval] (task.py 395): INFO Building contexts for piqa on rank 0...
+[2025-07-09 23:06:24 lm-eval] (evaluator.py 362): INFO Running loglikelihood requests
+[2025-07-09 23:24:56 root] (main.py 53): INFO |    Tasks    |Version|Filter|n-shot| Metric |Value |   |Stderr|
+|-------------|------:|------|-----:|--------|-----:|---|-----:|
+|winogrande   |      1|none  |     0|acc     |0.6819|±  |0.0131|
+|hellaswag    |      1|none  |     0|acc     |0.5449|±  |0.0050|
+|             |       |none  |     0|acc_norm|0.7386|±  |0.0044|
+|arc_challenge|      1|none  |     0|acc     |0.4155|±  |0.0144|
+|             |       |none  |     0|acc_norm|0.4403|±  |0.0145|
+|arc_easy     |      1|none  |     0|acc     |0.7428|±  |0.0090|
+|             |       |none  |     0|acc_norm|0.7146|±  |0.0093|
+|piqa         |      1|none  |     0|acc     |0.7584|±  |0.0100|
+|             |       |none  |     0|acc_norm|0.7639|±  |0.0099|
+|             |       |      |      |mean_acc|0.6679|   |      |
+
+[2025-07-09 23:24:56 root] (main.py 65): INFO Average Acc: 62.87%
+[2025-07-09 23:24:56 root] (main.py 66): INFO Average Acc (with norm): 66.79%
+[2025-07-09 23:24:56 root] (main.py 67): INFO Results string: 6.21 68.19 54.49 73.86 41.55 44.03 74.28 71.46 75.84 76.39

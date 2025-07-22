@@ -1,0 +1,6 @@
+[2025-07-12 15:22:15 root] (eval.py 67): INFO args: Namespace(quant_model_path='./pre_quantized_models/Llama-2-7b-hf-w4a4q4s8kv4', output_dir='./log/test', real_quant=False, ppl_seqlen=2048, seed=2, eval_ppl=True, eval_tasks='piqa,arc_easy,arc_challenge,hellaswag,winogrande', eval_batch_size=192, max_memory='70GiB')
+[2025-07-12 15:22:15 root] (eval.py 98): INFO init weight quantizer
+[2025-07-12 15:22:16 root] (eval.py 103): INFO init input quantizer
+[2025-07-12 15:22:16 root] (eval.py 108): INFO init v quantizer
+[2025-07-12 15:22:16 root] (eval.py 114): INFO init k quantizer
+[2025-07-12 15:22:16 root] (eval.py 118): INFO init s quantizer

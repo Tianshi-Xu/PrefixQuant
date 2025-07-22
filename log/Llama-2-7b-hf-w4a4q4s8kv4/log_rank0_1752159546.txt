@@ -1,0 +1,652 @@
+[2025-07-10 22:59:06 root] (main.py 178): INFO args: Namespace(model_path='/opt/pretrained_models/Llama-2-7b-hf', model_name='Llama-2-7b-hf', cache_dir='./cache', output_dir='./log/Llama-2-7b-hf-w4a4q4s8kv4', save_quant_dir='./pre_quantized_models/Llama-2-7b-hf-w4a4q4s8kv4', real_quant=False, resume_quant=None, wbits=4, w_group_size=-1, w_asym=False, input_bits=4, input_group_size=-1, input_mode='static', input_asym=False, k_bits=4, v_bits=4, kv_group_size=128, k_pre_rope=False, kv_mode='static', kv_asym=False, mse_init=True, asym_mse_init=False, skip_qk_weight_init=False, block_qk_weight_init=False, mse_init_size=8, fp_mse_init=False, pre_rotate=True, rotate_mode='hadamard', down_online_had=True, qk_online_had=True, set_prefixed_tokens=True, outlier_threshold=64, activation_clipping=False, quant_lr=5e-05, weight_lr=5e-06, min_lr_factor=10, clip_grad=0.3, wd=0, off_load_to_disk=False, use_fp32=False, debug=False, early_stop=0, constant_wlr=False, train_size=512, val_size=64, training_seqlen=1024, epochs=0, calib_dataset='pile', batch_size=4, loss_type='mse', training_target='fp_input', ppl_seqlen=2048, seed=2, eval_ppl=True, eval_tasks='piqa,arc_easy,arc_challenge,hellaswag,winogrande', eval_batch_size=16, max_memory='65GiB', max_outlier=5, max_item_index=5, set_outlier_zero=False, modified_index=0, ablate_prefix_number=None, s_bits=8)
+[2025-07-10 22:59:17 root] (train_utils.py 105): INFO GPU memory (from rotate_model): 2.10 -> 0.15 GB (-1.95 GB)
+[2025-07-10 23:00:23 datasets.load] (load.py 1600): WARNING Using the latest cached version of the dataset since mit-han-lab/pile-val-backup couldn't be found on the Hugging Face Hub
+[2025-07-10 23:00:23 datasets.packaged_modules.cache.cache] (cache.py 72): WARNING Found the latest cached dataset configuration 'default' at /home/xts/.cache/huggingface/datasets/mit-han-lab___pile-val-backup/default/0.0.0/2f5e46ae6a69cf0dce4b12f78241c408936ca0e4 (last modified on Thu Mar 20 16:36:57 2025).
+[2025-07-10 23:00:33 root] (main.py 240): INFO get 3 prefixed tokens; token id:[29889, 13, 1]; text: .
+<s>
+[2025-07-10 23:00:33 root] (main.py 241): INFO time to get prefixed token:9e+00s
+[2025-07-10 23:00:49 root] (main.py 263): INFO init weight quantizer
+[2025-07-10 23:00:50 root] (main.py 268): INFO init input quantizer
+[2025-07-10 23:00:50 root] (main.py 273): INFO init v quantizer
+[2025-07-10 23:00:50 root] (main.py 279): INFO init k quantizer
+[2025-07-10 23:00:50 root] (main.py 283): INFO init s quantizer
+[2025-07-10 23:00:50 root] (train_utils.py 105): INFO GPU memory (from main): 13.90 -> 0.03 GB (-13.88 GB)
+[2025-07-10 23:00:50 root] (main.py 292): INFO === start quantization Training ===
+[2025-07-10 23:00:50 root] (main.py 303): INFO load trainloader from ./cache/dataloader_Llama-2-7b-hf_pile_8_0_1024_train.cache
+[2025-07-10 23:00:50 root] (main.py 305): INFO load valloader from ./cache/dataloader_Llama-2-7b-hf_pile_8_0_1024_val.cache
+[2025-07-10 23:00:50 root] (block_ap.py 128): INFO Starting ...
+[2025-07-10 23:00:51 root] (block_ap.py 235): INFO === Start quantize blocks 0===
+[2025-07-10 23:00:51 root] (block_ap.py 256): INFO MSE init start
+[2025-07-10 23:00:52 root] (quant_utils.py 645): INFO [self_attn_s_quantizer] clipping factor: (0.949999988079071); best_loss:1.6093254089355469e-06 
+[2025-07-10 23:00:52 root] (quant_utils.py 634): INFO [self_attn.q_proj_weight_quantizer] best_loss:0.00028061866760253906 
+[2025-07-10 23:00:52 root] (quant_utils.py 634): INFO [self_attn.k_proj_weight_quantizer] best_loss:0.00023603439331054688 
+[2025-07-10 23:00:52 root] (quant_utils.py 597): INFO [self_attn.v_proj_output_quantizer] best_loss:1.5652301954105496e-05 
+[2025-07-10 23:00:53 root] (quant_utils.py 637): INFO [self_attn.v_proj_weight_quantizer] best_loss:3.337860107421875e-06 
+[2025-07-10 23:00:53 root] (quant_utils.py 585): INFO [self_attn.o_proj_input_quantizer] clipping factor: (0.949999988079071); best_loss:9.459257125854492e-05 
+[2025-07-10 23:00:53 root] (quant_utils.py 637): INFO [self_attn.o_proj_weight_quantizer] best_loss:2.980232238769531e-07 
+[2025-07-10 23:00:53 root] (quant_utils.py 615): INFO [self_attn.apply_rotary_pos_emb_qk_rotation_wrapper_k_quantizer] best_loss:3.3714986358290844e-08 
+[2025-07-10 23:00:54 root] (quant_utils.py 637): INFO [mlp.gate_proj_weight_quantizer] best_loss:2.9802322387695312e-05 
+[2025-07-10 23:00:54 root] (quant_utils.py 637): INFO [mlp.up_proj_weight_quantizer] best_loss:2.8371810913085938e-05 
+[2025-07-10 23:00:55 root] (quant_utils.py 585): INFO [mlp.down_proj_input_quantizer] clipping factor: (0.44999998807907104); best_loss:0.00013065338134765625 
+[2025-07-10 23:00:55 root] (quant_utils.py 637): INFO [mlp.down_proj_weight_quantizer] best_loss:1.4901161193847656e-06 
+[2025-07-10 23:00:55 root] (quant_utils.py 600): INFO [input_layernorm_output_quantizer] clipping factor: (0.44999998807907104); best_loss:0.00012767314910888672 
+[2025-07-10 23:00:56 root] (quant_utils.py 600): INFO [post_attention_layernorm_output_quantizer] clipping factor: (0.6499999761581421); best_loss:0.00013065338134765625 
+[2025-07-10 23:00:56 root] (block_ap.py 261): INFO MSE init end
+[2025-07-10 23:00:56 root] (block_ap.py 235): INFO === Start quantize blocks 1===
+[2025-07-10 23:00:57 root] (block_ap.py 256): INFO MSE init start
+[2025-07-10 23:00:58 root] (quant_utils.py 645): INFO [self_attn_s_quantizer] clipping factor: (0.949999988079071); best_loss:2.0265579223632812e-06 
+[2025-07-10 23:00:58 root] (quant_utils.py 634): INFO [self_attn.q_proj_weight_quantizer] best_loss:0.00038886070251464844 
+[2025-07-10 23:00:58 root] (quant_utils.py 634): INFO [self_attn.k_proj_weight_quantizer] best_loss:0.000423431396484375 
+[2025-07-10 23:00:58 root] (quant_utils.py 597): INFO [self_attn.v_proj_output_quantizer] best_loss:7.627570448676124e-05 
+[2025-07-10 23:00:58 root] (quant_utils.py 637): INFO [self_attn.v_proj_weight_quantizer] best_loss:1.8358230590820312e-05 
+[2025-07-10 23:00:59 root] (quant_utils.py 585): INFO [self_attn.o_proj_input_quantizer] clipping factor: (0.550000011920929); best_loss:0.00014972686767578125 
+[2025-07-10 23:00:59 root] (quant_utils.py 637): INFO [self_attn.o_proj_weight_quantizer] best_loss:1.4901161193847656e-06 
+[2025-07-10 23:00:59 root] (quant_utils.py 615): INFO [self_attn.apply_rotary_pos_emb_qk_rotation_wrapper_k_quantizer] best_loss:1.7873173874249915e-07 
+[2025-07-10 23:00:59 root] (quant_utils.py 637): INFO [mlp.gate_proj_weight_quantizer] best_loss:0.00013005733489990234 
+[2025-07-10 23:00:59 root] (quant_utils.py 637): INFO [mlp.up_proj_weight_quantizer] best_loss:0.00011336803436279297 
+[2025-07-10 23:01:00 root] (quant_utils.py 585): INFO [mlp.down_proj_input_quantizer] clipping factor: (0.6499999761581421); best_loss:0.00014162063598632812 
+[2025-07-10 23:01:00 root] (quant_utils.py 637): INFO [mlp.down_proj_weight_quantizer] best_loss:4.827976226806641e-06 
+[2025-07-10 23:01:01 root] (quant_utils.py 600): INFO [input_layernorm_output_quantizer] clipping factor: (0.949999988079071); best_loss:0.00013363361358642578 
+[2025-07-10 23:01:01 root] (quant_utils.py 600): INFO [post_attention_layernorm_output_quantizer] clipping factor: (0.6499999761581421); best_loss:0.00013720989227294922 
+[2025-07-10 23:01:01 root] (block_ap.py 261): INFO MSE init end
+[2025-07-10 23:01:02 root] (block_ap.py 235): INFO === Start quantize blocks 2===
+[2025-07-10 23:01:02 root] (block_ap.py 256): INFO MSE init start
+[2025-07-10 23:01:03 root] (quant_utils.py 645): INFO [self_attn_s_quantizer] clipping factor: (0.949999988079071); best_loss:2.86102294921875e-06 
+[2025-07-10 23:01:03 root] (quant_utils.py 634): INFO [self_attn.q_proj_weight_quantizer] best_loss:0.0009555816650390625 
+[2025-07-10 23:01:03 root] (quant_utils.py 634): INFO [self_attn.k_proj_weight_quantizer] best_loss:0.00107574462890625 
+[2025-07-10 23:01:03 root] (quant_utils.py 597): INFO [self_attn.v_proj_output_quantizer] best_loss:0.0005313419387675822 
+[2025-07-10 23:01:03 root] (quant_utils.py 637): INFO [self_attn.v_proj_weight_quantizer] best_loss:0.0002574920654296875 
+[2025-07-10 23:01:04 root] (quant_utils.py 585): INFO [self_attn.o_proj_input_quantizer] clipping factor: (0.3499999940395355); best_loss:0.00014829635620117188 
+[2025-07-10 23:01:04 root] (quant_utils.py 637): INFO [self_attn.o_proj_weight_quantizer] best_loss:3.516674041748047e-06 
+[2025-07-10 23:01:04 root] (quant_utils.py 615): INFO [self_attn.apply_rotary_pos_emb_qk_rotation_wrapper_k_quantizer] best_loss:6.468628157563217e-07 
+[2025-07-10 23:01:04 root] (quant_utils.py 637): INFO [mlp.gate_proj_weight_quantizer] best_loss:0.0002617835998535156 
+[2025-07-10 23:01:05 root] (quant_utils.py 637): INFO [mlp.up_proj_weight_quantizer] best_loss:0.00022709369659423828 
+[2025-07-10 23:01:05 root] (quant_utils.py 585): INFO [mlp.down_proj_input_quantizer] clipping factor: (0.550000011920929); best_loss:0.00010913610458374023 
+[2025-07-10 23:01:05 root] (quant_utils.py 637): INFO [mlp.down_proj_weight_quantizer] best_loss:8.165836334228516e-06 
+[2025-07-10 23:01:06 root] (quant_utils.py 600): INFO [input_layernorm_output_quantizer] clipping factor: (0.75); best_loss:0.00010520219802856445 
+[2025-07-10 23:01:07 root] (quant_utils.py 600): INFO [post_attention_layernorm_output_quantizer] clipping factor: (0.6499999761581421); best_loss:0.00010895729064941406 
+[2025-07-10 23:01:07 root] (block_ap.py 261): INFO MSE init end
+[2025-07-10 23:01:07 root] (block_ap.py 235): INFO === Start quantize blocks 3===
+[2025-07-10 23:01:08 root] (block_ap.py 256): INFO MSE init start
+[2025-07-10 23:01:09 root] (quant_utils.py 645): INFO [self_attn_s_quantizer] clipping factor: (0.949999988079071); best_loss:2.6226043701171875e-06 
+[2025-07-10 23:01:09 root] (quant_utils.py 634): INFO [self_attn.q_proj_weight_quantizer] best_loss:0.0022945404052734375 
+[2025-07-10 23:01:09 root] (quant_utils.py 634): INFO [self_attn.k_proj_weight_quantizer] best_loss:0.0025005340576171875 
+[2025-07-10 23:01:09 root] (quant_utils.py 597): INFO [self_attn.v_proj_output_quantizer] best_loss:0.0009226005058735609 
+[2025-07-10 23:01:09 root] (quant_utils.py 637): INFO [self_attn.v_proj_weight_quantizer] best_loss:0.0006451606750488281 
+[2025-07-10 23:01:10 root] (quant_utils.py 585): INFO [self_attn.o_proj_input_quantizer] clipping factor: (0.25); best_loss:0.00012254714965820312 
+[2025-07-10 23:01:10 root] (quant_utils.py 637): INFO [self_attn.o_proj_weight_quantizer] best_loss:3.516674041748047e-06 
+[2025-07-10 23:01:10 root] (quant_utils.py 615): INFO [self_attn.apply_rotary_pos_emb_qk_rotation_wrapper_k_quantizer] best_loss:9.89063437373261e-07 
+[2025-07-10 23:01:10 root] (quant_utils.py 637): INFO [mlp.gate_proj_weight_quantizer] best_loss:0.000438690185546875 
+[2025-07-10 23:01:10 root] (quant_utils.py 637): INFO [mlp.up_proj_weight_quantizer] best_loss:0.0003762245178222656 
+[2025-07-10 23:01:11 root] (quant_utils.py 585): INFO [mlp.down_proj_input_quantizer] clipping factor: (0.550000011920929); best_loss:7.486343383789062e-05 
+[2025-07-10 23:01:11 root] (quant_utils.py 637): INFO [mlp.down_proj_weight_quantizer] best_loss:1.4960765838623047e-05 
+[2025-07-10 23:01:12 root] (quant_utils.py 600): INFO [input_layernorm_output_quantizer] clipping factor: (0.75); best_loss:6.562471389770508e-05 
+[2025-07-10 23:01:12 root] (quant_utils.py 600): INFO [post_attention_layernorm_output_quantizer] clipping factor: (0.6499999761581421); best_loss:8.344650268554688e-05 
+[2025-07-10 23:01:12 root] (block_ap.py 261): INFO MSE init end
+[2025-07-10 23:01:13 root] (block_ap.py 235): INFO === Start quantize blocks 4===
+[2025-07-10 23:01:13 root] (block_ap.py 256): INFO MSE init start
+[2025-07-10 23:01:14 root] (quant_utils.py 645): INFO [self_attn_s_quantizer] clipping factor: (0.949999988079071); best_loss:4.827976226806641e-06 
+[2025-07-10 23:01:14 root] (quant_utils.py 634): INFO [self_attn.q_proj_weight_quantizer] best_loss:0.002132415771484375 
+[2025-07-10 23:01:14 root] (quant_utils.py 634): INFO [self_attn.k_proj_weight_quantizer] best_loss:0.0022735595703125 
+[2025-07-10 23:01:14 root] (quant_utils.py 597): INFO [self_attn.v_proj_output_quantizer] best_loss:0.000903225620277226 
+[2025-07-10 23:01:14 root] (quant_utils.py 637): INFO [self_attn.v_proj_weight_quantizer] best_loss:0.0006146430969238281 
+[2025-07-10 23:01:15 root] (quant_utils.py 585): INFO [self_attn.o_proj_input_quantizer] clipping factor: (0.25); best_loss:0.0002067089080810547 
+[2025-07-10 23:01:15 root] (quant_utils.py 637): INFO [self_attn.o_proj_weight_quantizer] best_loss:6.4373016357421875e-06 
+[2025-07-10 23:01:15 root] (quant_utils.py 615): INFO [self_attn.apply_rotary_pos_emb_qk_rotation_wrapper_k_quantizer] best_loss:8.871597856341396e-07 
+[2025-07-10 23:01:15 root] (quant_utils.py 637): INFO [mlp.gate_proj_weight_quantizer] best_loss:0.0005578994750976562 
+[2025-07-10 23:01:15 root] (quant_utils.py 637): INFO [mlp.up_proj_weight_quantizer] best_loss:0.00045108795166015625 
+[2025-07-10 23:01:16 root] (quant_utils.py 585): INFO [mlp.down_proj_input_quantizer] clipping factor: (0.550000011920929); best_loss:0.0001285076141357422 
+[2025-07-10 23:01:16 root] (quant_utils.py 637): INFO [mlp.down_proj_weight_quantizer] best_loss:2.676248550415039e-05 
+[2025-07-10 23:01:17 root] (quant_utils.py 600): INFO [input_layernorm_output_quantizer] clipping factor: (0.75); best_loss:0.00011473894119262695 
+[2025-07-10 23:01:17 root] (quant_utils.py 600): INFO [post_attention_layernorm_output_quantizer] clipping factor: (0.6499999761581421); best_loss:0.00014269351959228516 
+[2025-07-10 23:01:17 root] (block_ap.py 261): INFO MSE init end
+[2025-07-10 23:01:18 root] (block_ap.py 235): INFO === Start quantize blocks 5===
+[2025-07-10 23:01:18 root] (block_ap.py 256): INFO MSE init start
+[2025-07-10 23:01:19 root] (quant_utils.py 645): INFO [self_attn_s_quantizer] clipping factor: (0.949999988079071); best_loss:5.9604644775390625e-06 
+[2025-07-10 23:01:19 root] (quant_utils.py 634): INFO [self_attn.q_proj_weight_quantizer] best_loss:0.0023174285888671875 
+[2025-07-10 23:01:19 root] (quant_utils.py 634): INFO [self_attn.k_proj_weight_quantizer] best_loss:0.0025634765625 
+[2025-07-10 23:01:19 root] (quant_utils.py 597): INFO [self_attn.v_proj_output_quantizer] best_loss:0.0009564427891746163 
+[2025-07-10 23:01:19 root] (quant_utils.py 637): INFO [self_attn.v_proj_weight_quantizer] best_loss:0.0006937980651855469 
+[2025-07-10 23:01:20 root] (quant_utils.py 585): INFO [self_attn.o_proj_input_quantizer] clipping factor: (0.25); best_loss:0.0003292560577392578 
+[2025-07-10 23:01:20 root] (quant_utils.py 637): INFO [self_attn.o_proj_weight_quantizer] best_loss:1.5854835510253906e-05 
+[2025-07-10 23:01:20 root] (quant_utils.py 615): INFO [self_attn.apply_rotary_pos_emb_qk_rotation_wrapper_k_quantizer] best_loss:1.1833330972876865e-06 
+[2025-07-10 23:01:20 root] (quant_utils.py 637): INFO [mlp.gate_proj_weight_quantizer] best_loss:0.000652313232421875 
+[2025-07-10 23:01:20 root] (quant_utils.py 637): INFO [mlp.up_proj_weight_quantizer] best_loss:0.000522613525390625 
+[2025-07-10 23:01:21 root] (quant_utils.py 585): INFO [mlp.down_proj_input_quantizer] clipping factor: (0.44999998807907104); best_loss:0.000171661376953125 
+[2025-07-10 23:01:21 root] (quant_utils.py 637): INFO [mlp.down_proj_weight_quantizer] best_loss:3.7729740142822266e-05 
+[2025-07-10 23:01:22 root] (quant_utils.py 600): INFO [input_layernorm_output_quantizer] clipping factor: (0.75); best_loss:0.00015354156494140625 
+[2025-07-10 23:01:23 root] (quant_utils.py 600): INFO [post_attention_layernorm_output_quantizer] clipping factor: (0.550000011920929); best_loss:0.0001881122589111328 
+[2025-07-10 23:01:23 root] (block_ap.py 261): INFO MSE init end
+[2025-07-10 23:01:23 root] (block_ap.py 235): INFO === Start quantize blocks 6===
+[2025-07-10 23:01:23 root] (block_ap.py 256): INFO MSE init start
+[2025-07-10 23:01:24 root] (quant_utils.py 645): INFO [self_attn_s_quantizer] clipping factor: (0.949999988079071); best_loss:8.344650268554688e-06 
+[2025-07-10 23:01:24 root] (quant_utils.py 634): INFO [self_attn.q_proj_weight_quantizer] best_loss:0.0032558441162109375 
+[2025-07-10 23:01:24 root] (quant_utils.py 634): INFO [self_attn.k_proj_weight_quantizer] best_loss:0.0034122467041015625 
+[2025-07-10 23:01:24 root] (quant_utils.py 597): INFO [self_attn.v_proj_output_quantizer] best_loss:0.0014127062167972326 
+[2025-07-10 23:01:24 root] (quant_utils.py 637): INFO [self_attn.v_proj_weight_quantizer] best_loss:0.0009431838989257812 
+[2025-07-10 23:01:25 root] (quant_utils.py 585): INFO [self_attn.o_proj_input_quantizer] clipping factor: (0.3499999940395355); best_loss:0.0004513263702392578 
+[2025-07-10 23:01:25 root] (quant_utils.py 637): INFO [self_attn.o_proj_weight_quantizer] best_loss:1.9431114196777344e-05 
+[2025-07-10 23:01:25 root] (quant_utils.py 615): INFO [self_attn.apply_rotary_pos_emb_qk_rotation_wrapper_k_quantizer] best_loss:1.2920813787786756e-06 
+[2025-07-10 23:01:25 root] (quant_utils.py 637): INFO [mlp.gate_proj_weight_quantizer] best_loss:0.0007867813110351562 
+[2025-07-10 23:01:26 root] (quant_utils.py 637): INFO [mlp.up_proj_weight_quantizer] best_loss:0.0006041526794433594 
+[2025-07-10 23:01:26 root] (quant_utils.py 585): INFO [mlp.down_proj_input_quantizer] clipping factor: (0.44999998807907104); best_loss:0.00031685829162597656 
+[2025-07-10 23:01:26 root] (quant_utils.py 637): INFO [mlp.down_proj_weight_quantizer] best_loss:5.84721565246582e-05 
+[2025-07-10 23:01:27 root] (quant_utils.py 600): INFO [input_layernorm_output_quantizer] clipping factor: (0.8499999642372131); best_loss:0.0002903938293457031 
+[2025-07-10 23:01:28 root] (quant_utils.py 600): INFO [post_attention_layernorm_output_quantizer] clipping factor: (0.550000011920929); best_loss:0.0003414154052734375 
+[2025-07-10 23:01:28 root] (block_ap.py 261): INFO MSE init end
+[2025-07-10 23:01:28 root] (block_ap.py 235): INFO === Start quantize blocks 7===
+[2025-07-10 23:01:28 root] (block_ap.py 256): INFO MSE init start
+[2025-07-10 23:01:29 root] (quant_utils.py 645): INFO [self_attn_s_quantizer] clipping factor: (0.949999988079071); best_loss:9.715557098388672e-06 
+[2025-07-10 23:01:29 root] (quant_utils.py 634): INFO [self_attn.q_proj_weight_quantizer] best_loss:0.0035152435302734375 
+[2025-07-10 23:01:29 root] (quant_utils.py 634): INFO [self_attn.k_proj_weight_quantizer] best_loss:0.003551483154296875 
+[2025-07-10 23:01:29 root] (quant_utils.py 597): INFO [self_attn.v_proj_output_quantizer] best_loss:0.001561778481118381 
+[2025-07-10 23:01:30 root] (quant_utils.py 637): INFO [self_attn.v_proj_weight_quantizer] best_loss:0.001041412353515625 
+[2025-07-10 23:01:30 root] (quant_utils.py 585): INFO [self_attn.o_proj_input_quantizer] clipping factor: (0.3499999940395355); best_loss:0.0004658699035644531 
+[2025-07-10 23:01:30 root] (quant_utils.py 637): INFO [self_attn.o_proj_weight_quantizer] best_loss:3.170967102050781e-05 
+[2025-07-10 23:01:30 root] (quant_utils.py 615): INFO [self_attn.apply_rotary_pos_emb_qk_rotation_wrapper_k_quantizer] best_loss:1.4457280030910624e-06 
+[2025-07-10 23:01:31 root] (quant_utils.py 637): INFO [mlp.gate_proj_weight_quantizer] best_loss:0.0008845329284667969 
+[2025-07-10 23:01:31 root] (quant_utils.py 637): INFO [mlp.up_proj_weight_quantizer] best_loss:0.0006833076477050781 
+[2025-07-10 23:01:31 root] (quant_utils.py 585): INFO [mlp.down_proj_input_quantizer] clipping factor: (0.550000011920929); best_loss:0.0002942085266113281 
+[2025-07-10 23:01:32 root] (quant_utils.py 637): INFO [mlp.down_proj_weight_quantizer] best_loss:8.046627044677734e-05 
+[2025-07-10 23:01:32 root] (quant_utils.py 600): INFO [input_layernorm_output_quantizer] clipping factor: (0.75); best_loss:0.00025725364685058594 
+[2025-07-10 23:01:33 root] (quant_utils.py 600): INFO [post_attention_layernorm_output_quantizer] clipping factor: (0.550000011920929); best_loss:0.00032901763916015625 
+[2025-07-10 23:01:33 root] (block_ap.py 261): INFO MSE init end
+[2025-07-10 23:01:33 root] (block_ap.py 235): INFO === Start quantize blocks 8===
+[2025-07-10 23:01:34 root] (block_ap.py 256): INFO MSE init start
+[2025-07-10 23:01:34 root] (quant_utils.py 645): INFO [self_attn_s_quantizer] clipping factor: (0.949999988079071); best_loss:1.4960765838623047e-05 
+[2025-07-10 23:01:35 root] (quant_utils.py 634): INFO [self_attn.q_proj_weight_quantizer] best_loss:0.0034313201904296875 
+[2025-07-10 23:01:35 root] (quant_utils.py 634): INFO [self_attn.k_proj_weight_quantizer] best_loss:0.0035457611083984375 
+[2025-07-10 23:01:35 root] (quant_utils.py 597): INFO [self_attn.v_proj_output_quantizer] best_loss:0.0018705216934904456 
+[2025-07-10 23:01:35 root] (quant_utils.py 637): INFO [self_attn.v_proj_weight_quantizer] best_loss:0.001068115234375 
+[2025-07-10 23:01:35 root] (quant_utils.py 585): INFO [self_attn.o_proj_input_quantizer] clipping factor: (0.44999998807907104); best_loss:0.0006518363952636719 
+[2025-07-10 23:01:35 root] (quant_utils.py 637): INFO [self_attn.o_proj_weight_quantizer] best_loss:5.239248275756836e-05 
+[2025-07-10 23:01:36 root] (quant_utils.py 615): INFO [self_attn.apply_rotary_pos_emb_qk_rotation_wrapper_k_quantizer] best_loss:1.1330498637107667e-06 
+[2025-07-10 23:01:36 root] (quant_utils.py 637): INFO [mlp.gate_proj_weight_quantizer] best_loss:0.0009016990661621094 
+[2025-07-10 23:01:36 root] (quant_utils.py 637): INFO [mlp.up_proj_weight_quantizer] best_loss:0.000736236572265625 
+[2025-07-10 23:01:37 root] (quant_utils.py 585): INFO [mlp.down_proj_input_quantizer] clipping factor: (0.550000011920929); best_loss:0.00045228004455566406 
+[2025-07-10 23:01:37 root] (quant_utils.py 637): INFO [mlp.down_proj_weight_quantizer] best_loss:9.98377799987793e-05 
+[2025-07-10 23:01:37 root] (quant_utils.py 600): INFO [input_layernorm_output_quantizer] clipping factor: (0.75); best_loss:0.0004050731658935547 
+[2025-07-10 23:01:38 root] (quant_utils.py 600): INFO [post_attention_layernorm_output_quantizer] clipping factor: (0.550000011920929); best_loss:0.00048542022705078125 
+[2025-07-10 23:01:38 root] (block_ap.py 261): INFO MSE init end
+[2025-07-10 23:01:38 root] (block_ap.py 235): INFO === Start quantize blocks 9===
+[2025-07-10 23:01:39 root] (block_ap.py 256): INFO MSE init start
+[2025-07-10 23:01:40 root] (quant_utils.py 645): INFO [self_attn_s_quantizer] clipping factor: (0.949999988079071); best_loss:1.9073486328125e-05 
+[2025-07-10 23:01:40 root] (quant_utils.py 634): INFO [self_attn.q_proj_weight_quantizer] best_loss:0.003627777099609375 
+[2025-07-10 23:01:40 root] (quant_utils.py 634): INFO [self_attn.k_proj_weight_quantizer] best_loss:0.003856658935546875 
+[2025-07-10 23:01:40 root] (quant_utils.py 597): INFO [self_attn.v_proj_output_quantizer] best_loss:0.0028704204596579075 
+[2025-07-10 23:01:40 root] (quant_utils.py 637): INFO [self_attn.v_proj_weight_quantizer] best_loss:0.0011701583862304688 
+[2025-07-10 23:01:41 root] (quant_utils.py 585): INFO [self_attn.o_proj_input_quantizer] clipping factor: (0.44999998807907104); best_loss:0.0006461143493652344 
+[2025-07-10 23:01:41 root] (quant_utils.py 637): INFO [self_attn.o_proj_weight_quantizer] best_loss:7.385015487670898e-05 
+[2025-07-10 23:01:41 root] (quant_utils.py 615): INFO [self_attn.apply_rotary_pos_emb_qk_rotation_wrapper_k_quantizer] best_loss:9.849197795119835e-07 
+[2025-07-10 23:01:41 root] (quant_utils.py 637): INFO [mlp.gate_proj_weight_quantizer] best_loss:0.0009388923645019531 
+[2025-07-10 23:01:41 root] (quant_utils.py 637): INFO [mlp.up_proj_weight_quantizer] best_loss:0.0007920265197753906 
+[2025-07-10 23:01:42 root] (quant_utils.py 585): INFO [mlp.down_proj_input_quantizer] clipping factor: (0.550000011920929); best_loss:0.00038433074951171875 
+[2025-07-10 23:01:42 root] (quant_utils.py 637): INFO [mlp.down_proj_weight_quantizer] best_loss:0.00011754035949707031 
+[2025-07-10 23:01:43 root] (quant_utils.py 600): INFO [input_layernorm_output_quantizer] clipping factor: (0.75); best_loss:0.0003407001495361328 
+[2025-07-10 23:01:43 root] (quant_utils.py 600): INFO [post_attention_layernorm_output_quantizer] clipping factor: (0.550000011920929); best_loss:0.0004336833953857422 
+[2025-07-10 23:01:43 root] (block_ap.py 261): INFO MSE init end
+[2025-07-10 23:01:44 root] (block_ap.py 235): INFO === Start quantize blocks 10===
+[2025-07-10 23:01:44 root] (block_ap.py 256): INFO MSE init start
+[2025-07-10 23:01:45 root] (quant_utils.py 645): INFO [self_attn_s_quantizer] clipping factor: (0.949999988079071); best_loss:2.8252601623535156e-05 
+[2025-07-10 23:01:45 root] (quant_utils.py 634): INFO [self_attn.q_proj_weight_quantizer] best_loss:0.0037059783935546875 
+[2025-07-10 23:01:45 root] (quant_utils.py 634): INFO [self_attn.k_proj_weight_quantizer] best_loss:0.0039825439453125 
+[2025-07-10 23:01:45 root] (quant_utils.py 597): INFO [self_attn.v_proj_output_quantizer] best_loss:0.006050596479326487 
+[2025-07-10 23:01:45 root] (quant_utils.py 637): INFO [self_attn.v_proj_weight_quantizer] best_loss:0.0011777877807617188 
+[2025-07-10 23:01:46 root] (quant_utils.py 585): INFO [self_attn.o_proj_input_quantizer] clipping factor: (0.44999998807907104); best_loss:0.0006732940673828125 
+[2025-07-10 23:01:46 root] (quant_utils.py 637): INFO [self_attn.o_proj_weight_quantizer] best_loss:9.882450103759766e-05 
+[2025-07-10 23:01:46 root] (quant_utils.py 615): INFO [self_attn.apply_rotary_pos_emb_qk_rotation_wrapper_k_quantizer] best_loss:1.098762822948629e-06 
+[2025-07-10 23:01:46 root] (quant_utils.py 637): INFO [mlp.gate_proj_weight_quantizer] best_loss:0.0009760856628417969 
+[2025-07-10 23:01:46 root] (quant_utils.py 637): INFO [mlp.up_proj_weight_quantizer] best_loss:0.0008440017700195312 
+[2025-07-10 23:01:47 root] (quant_utils.py 585): INFO [mlp.down_proj_input_quantizer] clipping factor: (0.550000011920929); best_loss:0.0004677772521972656 
+[2025-07-10 23:01:47 root] (quant_utils.py 637): INFO [mlp.down_proj_weight_quantizer] best_loss:0.0001327991485595703 
+[2025-07-10 23:01:48 root] (quant_utils.py 600): INFO [input_layernorm_output_quantizer] clipping factor: (0.75); best_loss:0.0004298686981201172 
+[2025-07-10 23:01:48 root] (quant_utils.py 600): INFO [post_attention_layernorm_output_quantizer] clipping factor: (0.6499999761581421); best_loss:0.0005307197570800781 
+[2025-07-10 23:01:48 root] (block_ap.py 261): INFO MSE init end
+[2025-07-10 23:01:49 root] (block_ap.py 235): INFO === Start quantize blocks 11===
+[2025-07-10 23:01:49 root] (block_ap.py 256): INFO MSE init start
+[2025-07-10 23:01:50 root] (quant_utils.py 645): INFO [self_attn_s_quantizer] clipping factor: (0.949999988079071); best_loss:3.0159950256347656e-05 
+[2025-07-10 23:01:50 root] (quant_utils.py 634): INFO [self_attn.q_proj_weight_quantizer] best_loss:0.004116058349609375 
+[2025-07-10 23:01:50 root] (quant_utils.py 634): INFO [self_attn.k_proj_weight_quantizer] best_loss:0.004146575927734375 
+[2025-07-10 23:01:50 root] (quant_utils.py 597): INFO [self_attn.v_proj_output_quantizer] best_loss:0.005018099211156368 
+[2025-07-10 23:01:50 root] (quant_utils.py 637): INFO [self_attn.v_proj_weight_quantizer] best_loss:0.0015726089477539062 
+[2025-07-10 23:01:51 root] (quant_utils.py 585): INFO [self_attn.o_proj_input_quantizer] clipping factor: (0.44999998807907104); best_loss:0.0009131431579589844 
+[2025-07-10 23:01:51 root] (quant_utils.py 637): INFO [self_attn.o_proj_weight_quantizer] best_loss:0.00010502338409423828 
+[2025-07-10 23:01:51 root] (quant_utils.py 615): INFO [self_attn.apply_rotary_pos_emb_qk_rotation_wrapper_k_quantizer] best_loss:1.089138550014468e-06 
+[2025-07-10 23:01:51 root] (quant_utils.py 637): INFO [mlp.gate_proj_weight_quantizer] best_loss:0.0010404586791992188 
+[2025-07-10 23:01:51 root] (quant_utils.py 637): INFO [mlp.up_proj_weight_quantizer] best_loss:0.0009241104125976562 
+[2025-07-10 23:01:52 root] (quant_utils.py 585): INFO [mlp.down_proj_input_quantizer] clipping factor: (0.550000011920929); best_loss:0.0006618499755859375 
+[2025-07-10 23:01:52 root] (quant_utils.py 637): INFO [mlp.down_proj_weight_quantizer] best_loss:0.00015270709991455078 
+[2025-07-10 23:01:53 root] (quant_utils.py 600): INFO [input_layernorm_output_quantizer] clipping factor: (0.75); best_loss:0.0006084442138671875 
+[2025-07-10 23:01:54 root] (quant_utils.py 600): INFO [post_attention_layernorm_output_quantizer] clipping factor: (0.6499999761581421); best_loss:0.0007348060607910156 
+[2025-07-10 23:01:54 root] (block_ap.py 261): INFO MSE init end
+[2025-07-10 23:01:54 root] (block_ap.py 235): INFO === Start quantize blocks 12===
+[2025-07-10 23:01:54 root] (block_ap.py 256): INFO MSE init start
+[2025-07-10 23:01:55 root] (quant_utils.py 645): INFO [self_attn_s_quantizer] clipping factor: (0.949999988079071); best_loss:2.6702880859375e-05 
+[2025-07-10 23:01:55 root] (quant_utils.py 634): INFO [self_attn.q_proj_weight_quantizer] best_loss:0.00426483154296875 
+[2025-07-10 23:01:55 root] (quant_utils.py 634): INFO [self_attn.k_proj_weight_quantizer] best_loss:0.004619598388671875 
+[2025-07-10 23:01:55 root] (quant_utils.py 597): INFO [self_attn.v_proj_output_quantizer] best_loss:0.005717872641980648 
+[2025-07-10 23:01:55 root] (quant_utils.py 637): INFO [self_attn.v_proj_weight_quantizer] best_loss:0.0015392303466796875 
+[2025-07-10 23:01:56 root] (quant_utils.py 585): INFO [self_attn.o_proj_input_quantizer] clipping factor: (0.3499999940395355); best_loss:0.0008268356323242188 
+[2025-07-10 23:01:56 root] (quant_utils.py 637): INFO [self_attn.o_proj_weight_quantizer] best_loss:0.00011980533599853516 
+[2025-07-10 23:01:56 root] (quant_utils.py 615): INFO [self_attn.apply_rotary_pos_emb_qk_rotation_wrapper_k_quantizer] best_loss:1.0517035207158187e-06 
+[2025-07-10 23:01:56 root] (quant_utils.py 637): INFO [mlp.gate_proj_weight_quantizer] best_loss:0.0010814666748046875 
+[2025-07-10 23:01:57 root] (quant_utils.py 637): INFO [mlp.up_proj_weight_quantizer] best_loss:0.000995635986328125 
+[2025-07-10 23:01:57 root] (quant_utils.py 585): INFO [mlp.down_proj_input_quantizer] clipping factor: (0.550000011920929); best_loss:0.0005574226379394531 
+[2025-07-10 23:01:57 root] (quant_utils.py 637): INFO [mlp.down_proj_weight_quantizer] best_loss:0.00017464160919189453 
+[2025-07-10 23:01:58 root] (quant_utils.py 600): INFO [input_layernorm_output_quantizer] clipping factor: (0.75); best_loss:0.0004925727844238281 
+[2025-07-10 23:01:59 root] (quant_utils.py 600): INFO [post_attention_layernorm_output_quantizer] clipping factor: (0.6499999761581421); best_loss:0.0006399154663085938 
+[2025-07-10 23:01:59 root] (block_ap.py 261): INFO MSE init end
+[2025-07-10 23:01:59 root] (block_ap.py 235): INFO === Start quantize blocks 13===
+[2025-07-10 23:01:59 root] (block_ap.py 256): INFO MSE init start
+[2025-07-10 23:02:00 root] (quant_utils.py 645): INFO [self_attn_s_quantizer] clipping factor: (0.949999988079071); best_loss:2.276897430419922e-05 
+[2025-07-10 23:02:00 root] (quant_utils.py 634): INFO [self_attn.q_proj_weight_quantizer] best_loss:0.0043487548828125 
+[2025-07-10 23:02:00 root] (quant_utils.py 634): INFO [self_attn.k_proj_weight_quantizer] best_loss:0.004566192626953125 
+[2025-07-10 23:02:00 root] (quant_utils.py 597): INFO [self_attn.v_proj_output_quantizer] best_loss:0.003481482621282339 
+[2025-07-10 23:02:00 root] (quant_utils.py 637): INFO [self_attn.v_proj_weight_quantizer] best_loss:0.0017156600952148438 
+[2025-07-10 23:02:01 root] (quant_utils.py 585): INFO [self_attn.o_proj_input_quantizer] clipping factor: (0.44999998807907104); best_loss:0.0009641647338867188 
+[2025-07-10 23:02:01 root] (quant_utils.py 637): INFO [self_attn.o_proj_weight_quantizer] best_loss:0.00013113021850585938 
+[2025-07-10 23:02:01 root] (quant_utils.py 615): INFO [self_attn.apply_rotary_pos_emb_qk_rotation_wrapper_k_quantizer] best_loss:8.955865951065789e-07 
+[2025-07-10 23:02:02 root] (quant_utils.py 637): INFO [mlp.gate_proj_weight_quantizer] best_loss:0.0011463165283203125 
+[2025-07-10 23:02:02 root] (quant_utils.py 637): INFO [mlp.up_proj_weight_quantizer] best_loss:0.0010786056518554688 
+[2025-07-10 23:02:02 root] (quant_utils.py 585): INFO [mlp.down_proj_input_quantizer] clipping factor: (0.550000011920929); best_loss:0.000644683837890625 
+[2025-07-10 23:02:03 root] (quant_utils.py 637): INFO [mlp.down_proj_weight_quantizer] best_loss:0.0002225637435913086 
+[2025-07-10 23:02:03 root] (quant_utils.py 600): INFO [input_layernorm_output_quantizer] clipping factor: (0.75); best_loss:0.0005440711975097656 
+[2025-07-10 23:02:04 root] (quant_utils.py 600): INFO [post_attention_layernorm_output_quantizer] clipping factor: (0.6499999761581421); best_loss:0.0007271766662597656 
+[2025-07-10 23:02:04 root] (block_ap.py 261): INFO MSE init end
+[2025-07-10 23:02:04 root] (block_ap.py 235): INFO === Start quantize blocks 14===
+[2025-07-10 23:02:05 root] (block_ap.py 256): INFO MSE init start
+[2025-07-10 23:02:05 root] (quant_utils.py 645): INFO [self_attn_s_quantizer] clipping factor: (0.949999988079071); best_loss:2.467632293701172e-05 
+[2025-07-10 23:02:06 root] (quant_utils.py 634): INFO [self_attn.q_proj_weight_quantizer] best_loss:0.00452423095703125 
+[2025-07-10 23:02:06 root] (quant_utils.py 634): INFO [self_attn.k_proj_weight_quantizer] best_loss:0.004791259765625 
+[2025-07-10 23:02:06 root] (quant_utils.py 597): INFO [self_attn.v_proj_output_quantizer] best_loss:0.0037062172777950764 
+[2025-07-10 23:02:06 root] (quant_utils.py 637): INFO [self_attn.v_proj_weight_quantizer] best_loss:0.001720428466796875 
+[2025-07-10 23:02:06 root] (quant_utils.py 585): INFO [self_attn.o_proj_input_quantizer] clipping factor: (0.44999998807907104); best_loss:0.0008292198181152344 
+[2025-07-10 23:02:06 root] (quant_utils.py 637): INFO [self_attn.o_proj_weight_quantizer] best_loss:0.00015091896057128906 
+[2025-07-10 23:02:07 root] (quant_utils.py 615): INFO [self_attn.apply_rotary_pos_emb_qk_rotation_wrapper_k_quantizer] best_loss:1.094058688977384e-06 
+[2025-07-10 23:02:07 root] (quant_utils.py 637): INFO [mlp.gate_proj_weight_quantizer] best_loss:0.0012445449829101562 
+[2025-07-10 23:02:07 root] (quant_utils.py 637): INFO [mlp.up_proj_weight_quantizer] best_loss:0.0011758804321289062 
+[2025-07-10 23:02:08 root] (quant_utils.py 585): INFO [mlp.down_proj_input_quantizer] clipping factor: (0.550000011920929); best_loss:0.0006022453308105469 
+[2025-07-10 23:02:08 root] (quant_utils.py 637): INFO [mlp.down_proj_weight_quantizer] best_loss:0.0002586841583251953 
+[2025-07-10 23:02:08 root] (quant_utils.py 600): INFO [input_layernorm_output_quantizer] clipping factor: (0.75); best_loss:0.0004703998565673828 
+[2025-07-10 23:02:09 root] (quant_utils.py 600): INFO [post_attention_layernorm_output_quantizer] clipping factor: (0.6499999761581421); best_loss:0.0006866455078125 
+[2025-07-10 23:02:09 root] (block_ap.py 261): INFO MSE init end
+[2025-07-10 23:02:09 root] (block_ap.py 235): INFO === Start quantize blocks 15===
+[2025-07-10 23:02:10 root] (block_ap.py 256): INFO MSE init start
+[2025-07-10 23:02:11 root] (quant_utils.py 645): INFO [self_attn_s_quantizer] clipping factor: (0.949999988079071); best_loss:2.580881118774414e-05 
+[2025-07-10 23:02:11 root] (quant_utils.py 634): INFO [self_attn.q_proj_weight_quantizer] best_loss:0.004192352294921875 
+[2025-07-10 23:02:11 root] (quant_utils.py 634): INFO [self_attn.k_proj_weight_quantizer] best_loss:0.004566192626953125 
+[2025-07-10 23:02:11 root] (quant_utils.py 597): INFO [self_attn.v_proj_output_quantizer] best_loss:0.0036666630767285824 
+[2025-07-10 23:02:11 root] (quant_utils.py 637): INFO [self_attn.v_proj_weight_quantizer] best_loss:0.0017757415771484375 
+[2025-07-10 23:02:12 root] (quant_utils.py 585): INFO [self_attn.o_proj_input_quantizer] clipping factor: (0.3499999940395355); best_loss:0.0011816024780273438 
+[2025-07-10 23:02:12 root] (quant_utils.py 637): INFO [self_attn.o_proj_weight_quantizer] best_loss:0.00016891956329345703 
+[2025-07-10 23:02:12 root] (quant_utils.py 615): INFO [self_attn.apply_rotary_pos_emb_qk_rotation_wrapper_k_quantizer] best_loss:1.1075992460973794e-06 
+[2025-07-10 23:02:12 root] (quant_utils.py 637): INFO [mlp.gate_proj_weight_quantizer] best_loss:0.0013608932495117188 
+[2025-07-10 23:02:12 root] (quant_utils.py 637): INFO [mlp.up_proj_weight_quantizer] best_loss:0.0012922286987304688 
+[2025-07-10 23:02:13 root] (quant_utils.py 585): INFO [mlp.down_proj_input_quantizer] clipping factor: (0.550000011920929); best_loss:0.0007772445678710938 
+[2025-07-10 23:02:13 root] (quant_utils.py 637): INFO [mlp.down_proj_weight_quantizer] best_loss:0.00033926963806152344 
+[2025-07-10 23:02:14 root] (quant_utils.py 600): INFO [input_layernorm_output_quantizer] clipping factor: (0.75); best_loss:0.0005736351013183594 
+[2025-07-10 23:02:14 root] (quant_utils.py 600): INFO [post_attention_layernorm_output_quantizer] clipping factor: (0.6499999761581421); best_loss:0.0008654594421386719 
+[2025-07-10 23:02:14 root] (block_ap.py 261): INFO MSE init end
+[2025-07-10 23:02:15 root] (block_ap.py 235): INFO === Start quantize blocks 16===
+[2025-07-10 23:02:15 root] (block_ap.py 256): INFO MSE init start
+[2025-07-10 23:02:16 root] (quant_utils.py 645): INFO [self_attn_s_quantizer] clipping factor: (0.949999988079071); best_loss:2.5510787963867188e-05 
+[2025-07-10 23:02:16 root] (quant_utils.py 634): INFO [self_attn.q_proj_weight_quantizer] best_loss:0.0044097900390625 
+[2025-07-10 23:02:16 root] (quant_utils.py 634): INFO [self_attn.k_proj_weight_quantizer] best_loss:0.00475311279296875 
+[2025-07-10 23:02:16 root] (quant_utils.py 597): INFO [self_attn.v_proj_output_quantizer] best_loss:0.0034941521007567644 
+[2025-07-10 23:02:16 root] (quant_utils.py 637): INFO [self_attn.v_proj_weight_quantizer] best_loss:0.0020580291748046875 
+[2025-07-10 23:02:17 root] (quant_utils.py 585): INFO [self_attn.o_proj_input_quantizer] clipping factor: (0.44999998807907104); best_loss:0.001552581787109375 
+[2025-07-10 23:02:17 root] (quant_utils.py 637): INFO [self_attn.o_proj_weight_quantizer] best_loss:0.0002167224884033203 
+[2025-07-10 23:02:17 root] (quant_utils.py 615): INFO [self_attn.apply_rotary_pos_emb_qk_rotation_wrapper_k_quantizer] best_loss:1.1740464742615586e-06 
+[2025-07-10 23:02:17 root] (quant_utils.py 637): INFO [mlp.gate_proj_weight_quantizer] best_loss:0.00156402587890625 
+[2025-07-10 23:02:17 root] (quant_utils.py 637): INFO [mlp.up_proj_weight_quantizer] best_loss:0.001461029052734375 
+[2025-07-10 23:02:18 root] (quant_utils.py 585): INFO [mlp.down_proj_input_quantizer] clipping factor: (0.550000011920929); best_loss:0.0011396408081054688 
+[2025-07-10 23:02:18 root] (quant_utils.py 637): INFO [mlp.down_proj_weight_quantizer] best_loss:0.00044345855712890625 
+[2025-07-10 23:02:19 root] (quant_utils.py 600): INFO [input_layernorm_output_quantizer] clipping factor: (0.6499999761581421); best_loss:0.0009021759033203125 
+[2025-07-10 23:02:20 root] (quant_utils.py 600): INFO [post_attention_layernorm_output_quantizer] clipping factor: (0.6499999761581421); best_loss:0.0012254714965820312 
+[2025-07-10 23:02:20 root] (block_ap.py 261): INFO MSE init end
+[2025-07-10 23:02:20 root] (block_ap.py 235): INFO === Start quantize blocks 17===
+[2025-07-10 23:02:20 root] (block_ap.py 256): INFO MSE init start
+[2025-07-10 23:02:21 root] (quant_utils.py 645): INFO [self_attn_s_quantizer] clipping factor: (0.949999988079071); best_loss:2.1755695343017578e-05 
+[2025-07-10 23:02:21 root] (quant_utils.py 634): INFO [self_attn.q_proj_weight_quantizer] best_loss:0.00457763671875 
+[2025-07-10 23:02:21 root] (quant_utils.py 634): INFO [self_attn.k_proj_weight_quantizer] best_loss:0.00489044189453125 
+[2025-07-10 23:02:21 root] (quant_utils.py 597): INFO [self_attn.v_proj_output_quantizer] best_loss:0.0031337840482592583 
+[2025-07-10 23:02:21 root] (quant_utils.py 637): INFO [self_attn.v_proj_weight_quantizer] best_loss:0.00215911865234375 
+[2025-07-10 23:02:22 root] (quant_utils.py 585): INFO [self_attn.o_proj_input_quantizer] clipping factor: (0.44999998807907104); best_loss:0.001476287841796875 
+[2025-07-10 23:02:22 root] (quant_utils.py 637): INFO [self_attn.o_proj_weight_quantizer] best_loss:0.00015401840209960938 
+[2025-07-10 23:02:22 root] (quant_utils.py 615): INFO [self_attn.apply_rotary_pos_emb_qk_rotation_wrapper_k_quantizer] best_loss:1.0717236591517576e-06 
+[2025-07-10 23:02:22 root] (quant_utils.py 637): INFO [mlp.gate_proj_weight_quantizer] best_loss:0.0017843246459960938 
+[2025-07-10 23:02:22 root] (quant_utils.py 637): INFO [mlp.up_proj_weight_quantizer] best_loss:0.0016298294067382812 
+[2025-07-10 23:02:23 root] (quant_utils.py 585): INFO [mlp.down_proj_input_quantizer] clipping factor: (0.550000011920929); best_loss:0.0011301040649414062 
+[2025-07-10 23:02:23 root] (quant_utils.py 637): INFO [mlp.down_proj_weight_quantizer] best_loss:0.0004935264587402344 
+[2025-07-10 23:02:24 root] (quant_utils.py 600): INFO [input_layernorm_output_quantizer] clipping factor: (0.75); best_loss:0.0008111000061035156 
+[2025-07-10 23:02:25 root] (quant_utils.py 600): INFO [post_attention_layernorm_output_quantizer] clipping factor: (0.6499999761581421); best_loss:0.0012063980102539062 
+[2025-07-10 23:02:25 root] (block_ap.py 261): INFO MSE init end
+[2025-07-10 23:02:25 root] (block_ap.py 235): INFO === Start quantize blocks 18===
+[2025-07-10 23:02:25 root] (block_ap.py 256): INFO MSE init start
+[2025-07-10 23:02:26 root] (quant_utils.py 645): INFO [self_attn_s_quantizer] clipping factor: (0.949999988079071); best_loss:2.2649765014648438e-05 
+[2025-07-10 23:02:26 root] (quant_utils.py 634): INFO [self_attn.q_proj_weight_quantizer] best_loss:0.00487518310546875 
+[2025-07-10 23:02:26 root] (quant_utils.py 634): INFO [self_attn.k_proj_weight_quantizer] best_loss:0.005146026611328125 
+[2025-07-10 23:02:26 root] (quant_utils.py 597): INFO [self_attn.v_proj_output_quantizer] best_loss:0.0037052566185593605 
+[2025-07-10 23:02:26 root] (quant_utils.py 637): INFO [self_attn.v_proj_weight_quantizer] best_loss:0.0026397705078125 
+[2025-07-10 23:02:27 root] (quant_utils.py 585): INFO [self_attn.o_proj_input_quantizer] clipping factor: (0.25); best_loss:0.0023250579833984375 
+[2025-07-10 23:02:27 root] (quant_utils.py 637): INFO [self_attn.o_proj_weight_quantizer] best_loss:0.00017499923706054688 
+[2025-07-10 23:02:27 root] (quant_utils.py 615): INFO [self_attn.apply_rotary_pos_emb_qk_rotation_wrapper_k_quantizer] best_loss:1.1893653208971955e-06 
+[2025-07-10 23:02:27 root] (quant_utils.py 637): INFO [mlp.gate_proj_weight_quantizer] best_loss:0.0020294189453125 
+[2025-07-10 23:02:28 root] (quant_utils.py 637): INFO [mlp.up_proj_weight_quantizer] best_loss:0.0018062591552734375 
+[2025-07-10 23:02:28 root] (quant_utils.py 585): INFO [mlp.down_proj_input_quantizer] clipping factor: (0.550000011920929); best_loss:0.0012445449829101562 
+[2025-07-10 23:02:28 root] (quant_utils.py 637): INFO [mlp.down_proj_weight_quantizer] best_loss:0.0005769729614257812 
+[2025-07-10 23:02:29 root] (quant_utils.py 600): INFO [input_layernorm_output_quantizer] clipping factor: (0.75); best_loss:0.0008578300476074219 
+[2025-07-10 23:02:30 root] (quant_utils.py 600): INFO [post_attention_layernorm_output_quantizer] clipping factor: (0.6499999761581421); best_loss:0.001323699951171875 
+[2025-07-10 23:02:30 root] (block_ap.py 261): INFO MSE init end
+[2025-07-10 23:02:30 root] (block_ap.py 235): INFO === Start quantize blocks 19===
+[2025-07-10 23:02:30 root] (block_ap.py 256): INFO MSE init start
+[2025-07-10 23:02:31 root] (quant_utils.py 645): INFO [self_attn_s_quantizer] clipping factor: (0.949999988079071); best_loss:2.276897430419922e-05 
+[2025-07-10 23:02:31 root] (quant_utils.py 634): INFO [self_attn.q_proj_weight_quantizer] best_loss:0.004734039306640625 
+[2025-07-10 23:02:31 root] (quant_utils.py 634): INFO [self_attn.k_proj_weight_quantizer] best_loss:0.005008697509765625 
+[2025-07-10 23:02:31 root] (quant_utils.py 597): INFO [self_attn.v_proj_output_quantizer] best_loss:0.0036438603419810534 
+[2025-07-10 23:02:32 root] (quant_utils.py 637): INFO [self_attn.v_proj_weight_quantizer] best_loss:0.0026683807373046875 
+[2025-07-10 23:02:32 root] (quant_utils.py 585): INFO [self_attn.o_proj_input_quantizer] clipping factor: (0.3499999940395355); best_loss:0.0021305084228515625 
+[2025-07-10 23:02:32 root] (quant_utils.py 637): INFO [self_attn.o_proj_weight_quantizer] best_loss:0.0001627206802368164 
+[2025-07-10 23:02:32 root] (quant_utils.py 615): INFO [self_attn.apply_rotary_pos_emb_qk_rotation_wrapper_k_quantizer] best_loss:1.0147705324925482e-06 
+[2025-07-10 23:02:33 root] (quant_utils.py 637): INFO [mlp.gate_proj_weight_quantizer] best_loss:0.0021820068359375 
+[2025-07-10 23:02:33 root] (quant_utils.py 637): INFO [mlp.up_proj_weight_quantizer] best_loss:0.001926422119140625 
+[2025-07-10 23:02:34 root] (quant_utils.py 585): INFO [mlp.down_proj_input_quantizer] clipping factor: (0.550000011920929); best_loss:0.0013303756713867188 
+[2025-07-10 23:02:34 root] (quant_utils.py 637): INFO [mlp.down_proj_weight_quantizer] best_loss:0.0006303787231445312 
+[2025-07-10 23:02:34 root] (quant_utils.py 600): INFO [input_layernorm_output_quantizer] clipping factor: (0.75); best_loss:0.0008611679077148438 
+[2025-07-10 23:02:35 root] (quant_utils.py 600): INFO [post_attention_layernorm_output_quantizer] clipping factor: (0.6499999761581421); best_loss:0.0014238357543945312 
+[2025-07-10 23:02:35 root] (block_ap.py 261): INFO MSE init end
+[2025-07-10 23:02:35 root] (block_ap.py 235): INFO === Start quantize blocks 20===
+[2025-07-10 23:02:36 root] (block_ap.py 256): INFO MSE init start
+[2025-07-10 23:02:37 root] (quant_utils.py 645): INFO [self_attn_s_quantizer] clipping factor: (0.949999988079071); best_loss:2.962350845336914e-05 
+[2025-07-10 23:02:37 root] (quant_utils.py 634): INFO [self_attn.q_proj_weight_quantizer] best_loss:0.004856109619140625 
+[2025-07-10 23:02:37 root] (quant_utils.py 634): INFO [self_attn.k_proj_weight_quantizer] best_loss:0.00511932373046875 
+[2025-07-10 23:02:37 root] (quant_utils.py 597): INFO [self_attn.v_proj_output_quantizer] best_loss:0.0036855051293969154 
+[2025-07-10 23:02:37 root] (quant_utils.py 637): INFO [self_attn.v_proj_weight_quantizer] best_loss:0.0027828216552734375 
+[2025-07-10 23:02:37 root] (quant_utils.py 585): INFO [self_attn.o_proj_input_quantizer] clipping factor: (0.3499999940395355); best_loss:0.0024852752685546875 
+[2025-07-10 23:02:38 root] (quant_utils.py 637): INFO [self_attn.o_proj_weight_quantizer] best_loss:0.00020837783813476562 
+[2025-07-10 23:02:38 root] (quant_utils.py 615): INFO [self_attn.apply_rotary_pos_emb_qk_rotation_wrapper_k_quantizer] best_loss:1.093811647479015e-06 
+[2025-07-10 23:02:38 root] (quant_utils.py 637): INFO [mlp.gate_proj_weight_quantizer] best_loss:0.0023555755615234375 
+[2025-07-10 23:02:38 root] (quant_utils.py 637): INFO [mlp.up_proj_weight_quantizer] best_loss:0.0020465850830078125 
+[2025-07-10 23:02:39 root] (quant_utils.py 585): INFO [mlp.down_proj_input_quantizer] clipping factor: (0.550000011920929); best_loss:0.001834869384765625 
+[2025-07-10 23:02:39 root] (quant_utils.py 637): INFO [mlp.down_proj_weight_quantizer] best_loss:0.0007724761962890625 
+[2025-07-10 23:02:40 root] (quant_utils.py 600): INFO [input_layernorm_output_quantizer] clipping factor: (0.75); best_loss:0.0012235641479492188 
+[2025-07-10 23:02:40 root] (quant_utils.py 600): INFO [post_attention_layernorm_output_quantizer] clipping factor: (0.6499999761581421); best_loss:0.0018310546875 
+[2025-07-10 23:02:40 root] (block_ap.py 261): INFO MSE init end
+[2025-07-10 23:02:40 root] (block_ap.py 235): INFO === Start quantize blocks 21===
+[2025-07-10 23:02:41 root] (block_ap.py 256): INFO MSE init start
+[2025-07-10 23:02:42 root] (quant_utils.py 645): INFO [self_attn_s_quantizer] clipping factor: (0.949999988079071); best_loss:2.3365020751953125e-05 
+[2025-07-10 23:02:42 root] (quant_utils.py 634): INFO [self_attn.q_proj_weight_quantizer] best_loss:0.00518035888671875 
+[2025-07-10 23:02:42 root] (quant_utils.py 634): INFO [self_attn.k_proj_weight_quantizer] best_loss:0.005367279052734375 
+[2025-07-10 23:02:42 root] (quant_utils.py 597): INFO [self_attn.v_proj_output_quantizer] best_loss:0.004142226651310921 
+[2025-07-10 23:02:42 root] (quant_utils.py 637): INFO [self_attn.v_proj_weight_quantizer] best_loss:0.003299713134765625 
+[2025-07-10 23:02:43 root] (quant_utils.py 585): INFO [self_attn.o_proj_input_quantizer] clipping factor: (0.3499999940395355); best_loss:0.0021152496337890625 
+[2025-07-10 23:02:43 root] (quant_utils.py 637): INFO [self_attn.o_proj_weight_quantizer] best_loss:0.00018894672393798828 
+[2025-07-10 23:02:43 root] (quant_utils.py 615): INFO [self_attn.apply_rotary_pos_emb_qk_rotation_wrapper_k_quantizer] best_loss:1.1191455087100621e-06 
+[2025-07-10 23:02:43 root] (quant_utils.py 637): INFO [mlp.gate_proj_weight_quantizer] best_loss:0.0025177001953125 
+[2025-07-10 23:02:43 root] (quant_utils.py 637): INFO [mlp.up_proj_weight_quantizer] best_loss:0.0021610260009765625 
+[2025-07-10 23:02:44 root] (quant_utils.py 585): INFO [mlp.down_proj_input_quantizer] clipping factor: (0.550000011920929); best_loss:0.0013446807861328125 
+[2025-07-10 23:02:44 root] (quant_utils.py 637): INFO [mlp.down_proj_weight_quantizer] best_loss:0.0007491111755371094 
+[2025-07-10 23:02:45 root] (quant_utils.py 600): INFO [input_layernorm_output_quantizer] clipping factor: (0.75); best_loss:0.0007205009460449219 
+[2025-07-10 23:02:45 root] (quant_utils.py 600): INFO [post_attention_layernorm_output_quantizer] clipping factor: (0.6499999761581421); best_loss:0.0014286041259765625 
+[2025-07-10 23:02:45 root] (block_ap.py 261): INFO MSE init end
+[2025-07-10 23:02:46 root] (block_ap.py 235): INFO === Start quantize blocks 22===
+[2025-07-10 23:02:46 root] (block_ap.py 256): INFO MSE init start
+[2025-07-10 23:02:47 root] (quant_utils.py 645): INFO [self_attn_s_quantizer] clipping factor: (0.949999988079071); best_loss:2.5093555450439453e-05 
+[2025-07-10 23:02:47 root] (quant_utils.py 634): INFO [self_attn.q_proj_weight_quantizer] best_loss:0.0055389404296875 
+[2025-07-10 23:02:47 root] (quant_utils.py 634): INFO [self_attn.k_proj_weight_quantizer] best_loss:0.005733489990234375 
+[2025-07-10 23:02:47 root] (quant_utils.py 597): INFO [self_attn.v_proj_output_quantizer] best_loss:0.004385857842862606 
+[2025-07-10 23:02:47 root] (quant_utils.py 637): INFO [self_attn.v_proj_weight_quantizer] best_loss:0.00339508056640625 
+[2025-07-10 23:02:48 root] (quant_utils.py 585): INFO [self_attn.o_proj_input_quantizer] clipping factor: (0.3499999940395355); best_loss:0.00286865234375 
+[2025-07-10 23:02:48 root] (quant_utils.py 637): INFO [self_attn.o_proj_weight_quantizer] best_loss:0.00024580955505371094 
+[2025-07-10 23:02:48 root] (quant_utils.py 615): INFO [self_attn.apply_rotary_pos_emb_qk_rotation_wrapper_k_quantizer] best_loss:1.4944637314329157e-06 
+[2025-07-10 23:02:48 root] (quant_utils.py 637): INFO [mlp.gate_proj_weight_quantizer] best_loss:0.00267791748046875 
+[2025-07-10 23:02:48 root] (quant_utils.py 637): INFO [mlp.up_proj_weight_quantizer] best_loss:0.0022640228271484375 
+[2025-07-10 23:02:49 root] (quant_utils.py 585): INFO [mlp.down_proj_input_quantizer] clipping factor: (0.550000011920929); best_loss:0.001995086669921875 
+[2025-07-10 23:02:49 root] (quant_utils.py 637): INFO [mlp.down_proj_weight_quantizer] best_loss:0.0008406639099121094 
+[2025-07-10 23:02:50 root] (quant_utils.py 600): INFO [input_layernorm_output_quantizer] clipping factor: (0.75); best_loss:0.0013608932495117188 
+[2025-07-10 23:02:51 root] (quant_utils.py 600): INFO [post_attention_layernorm_output_quantizer] clipping factor: (0.6499999761581421); best_loss:0.0020847320556640625 
+[2025-07-10 23:02:51 root] (block_ap.py 261): INFO MSE init end
+[2025-07-10 23:02:51 root] (block_ap.py 235): INFO === Start quantize blocks 23===
+[2025-07-10 23:02:51 root] (block_ap.py 256): INFO MSE init start
+[2025-07-10 23:02:52 root] (quant_utils.py 645): INFO [self_attn_s_quantizer] clipping factor: (0.949999988079071); best_loss:2.205371856689453e-05 
+[2025-07-10 23:02:52 root] (quant_utils.py 634): INFO [self_attn.q_proj_weight_quantizer] best_loss:0.006092071533203125 
+[2025-07-10 23:02:52 root] (quant_utils.py 634): INFO [self_attn.k_proj_weight_quantizer] best_loss:0.0062408447265625 
+[2025-07-10 23:02:52 root] (quant_utils.py 597): INFO [self_attn.v_proj_output_quantizer] best_loss:0.004927353002130985 
+[2025-07-10 23:02:52 root] (quant_utils.py 637): INFO [self_attn.v_proj_weight_quantizer] best_loss:0.0041961669921875 
+[2025-07-10 23:02:53 root] (quant_utils.py 585): INFO [self_attn.o_proj_input_quantizer] clipping factor: (0.3499999940395355); best_loss:0.002399444580078125 
+[2025-07-10 23:02:53 root] (quant_utils.py 637): INFO [self_attn.o_proj_weight_quantizer] best_loss:0.0001977682113647461 
+[2025-07-10 23:02:53 root] (quant_utils.py 615): INFO [self_attn.apply_rotary_pos_emb_qk_rotation_wrapper_k_quantizer] best_loss:1.124134769270313e-06 
+[2025-07-10 23:02:53 root] (quant_utils.py 637): INFO [mlp.gate_proj_weight_quantizer] best_loss:0.002841949462890625 
+[2025-07-10 23:02:53 root] (quant_utils.py 637): INFO [mlp.up_proj_weight_quantizer] best_loss:0.002429962158203125 
+[2025-07-10 23:02:54 root] (quant_utils.py 585): INFO [mlp.down_proj_input_quantizer] clipping factor: (0.550000011920929); best_loss:0.0015058517456054688 
+[2025-07-10 23:02:54 root] (quant_utils.py 637): INFO [mlp.down_proj_weight_quantizer] best_loss:0.0008959770202636719 
+[2025-07-10 23:02:55 root] (quant_utils.py 600): INFO [input_layernorm_output_quantizer] clipping factor: (0.6499999761581421); best_loss:0.0006422996520996094 
+[2025-07-10 23:02:56 root] (quant_utils.py 600): INFO [post_attention_layernorm_output_quantizer] clipping factor: (0.6499999761581421); best_loss:0.0016107559204101562 
+[2025-07-10 23:02:56 root] (block_ap.py 261): INFO MSE init end
+[2025-07-10 23:02:56 root] (block_ap.py 235): INFO === Start quantize blocks 24===
+[2025-07-10 23:02:56 root] (block_ap.py 256): INFO MSE init start
+[2025-07-10 23:02:57 root] (quant_utils.py 645): INFO [self_attn_s_quantizer] clipping factor: (0.949999988079071); best_loss:3.4689903259277344e-05 
+[2025-07-10 23:02:57 root] (quant_utils.py 634): INFO [self_attn.q_proj_weight_quantizer] best_loss:0.005580902099609375 
+[2025-07-10 23:02:57 root] (quant_utils.py 634): INFO [self_attn.k_proj_weight_quantizer] best_loss:0.005733489990234375 
+[2025-07-10 23:02:57 root] (quant_utils.py 597): INFO [self_attn.v_proj_output_quantizer] best_loss:0.004907036665827036 
+[2025-07-10 23:02:57 root] (quant_utils.py 637): INFO [self_attn.v_proj_weight_quantizer] best_loss:0.00396728515625 
+[2025-07-10 23:02:58 root] (quant_utils.py 585): INFO [self_attn.o_proj_input_quantizer] clipping factor: (0.44999998807907104); best_loss:0.00252532958984375 
+[2025-07-10 23:02:58 root] (quant_utils.py 637): INFO [self_attn.o_proj_weight_quantizer] best_loss:0.0002808570861816406 
+[2025-07-10 23:02:58 root] (quant_utils.py 615): INFO [self_attn.apply_rotary_pos_emb_qk_rotation_wrapper_k_quantizer] best_loss:1.0967130492645083e-06 
+[2025-07-10 23:02:59 root] (quant_utils.py 637): INFO [mlp.gate_proj_weight_quantizer] best_loss:0.003017425537109375 
+[2025-07-10 23:02:59 root] (quant_utils.py 637): INFO [mlp.up_proj_weight_quantizer] best_loss:0.0025844573974609375 
+[2025-07-10 23:02:59 root] (quant_utils.py 585): INFO [mlp.down_proj_input_quantizer] clipping factor: (0.550000011920929); best_loss:0.0017995834350585938 
+[2025-07-10 23:02:59 root] (quant_utils.py 637): INFO [mlp.down_proj_weight_quantizer] best_loss:0.000942230224609375 
+[2025-07-10 23:03:00 root] (quant_utils.py 600): INFO [input_layernorm_output_quantizer] clipping factor: (0.6499999761581421); best_loss:0.0009813308715820312 
+[2025-07-10 23:03:01 root] (quant_utils.py 600): INFO [post_attention_layernorm_output_quantizer] clipping factor: (0.6499999761581421); best_loss:0.00202178955078125 
+[2025-07-10 23:03:01 root] (block_ap.py 261): INFO MSE init end
+[2025-07-10 23:03:01 root] (block_ap.py 235): INFO === Start quantize blocks 25===
+[2025-07-10 23:03:01 root] (block_ap.py 256): INFO MSE init start
+[2025-07-10 23:03:02 root] (quant_utils.py 645): INFO [self_attn_s_quantizer] clipping factor: (0.949999988079071); best_loss:2.4616718292236328e-05 
+[2025-07-10 23:03:03 root] (quant_utils.py 634): INFO [self_attn.q_proj_weight_quantizer] best_loss:0.006610870361328125 
+[2025-07-10 23:03:03 root] (quant_utils.py 634): INFO [self_attn.k_proj_weight_quantizer] best_loss:0.0066680908203125 
+[2025-07-10 23:03:03 root] (quant_utils.py 597): INFO [self_attn.v_proj_output_quantizer] best_loss:0.0055660055950284 
+[2025-07-10 23:03:03 root] (quant_utils.py 637): INFO [self_attn.v_proj_weight_quantizer] best_loss:0.004985809326171875 
+[2025-07-10 23:03:03 root] (quant_utils.py 585): INFO [self_attn.o_proj_input_quantizer] clipping factor: (0.25); best_loss:0.00351715087890625 
+[2025-07-10 23:03:03 root] (quant_utils.py 637): INFO [self_attn.o_proj_weight_quantizer] best_loss:0.00018453598022460938 
+[2025-07-10 23:03:04 root] (quant_utils.py 615): INFO [self_attn.apply_rotary_pos_emb_qk_rotation_wrapper_k_quantizer] best_loss:1.0713476967794122e-06 
+[2025-07-10 23:03:04 root] (quant_utils.py 637): INFO [mlp.gate_proj_weight_quantizer] best_loss:0.0031909942626953125 
+[2025-07-10 23:03:04 root] (quant_utils.py 637): INFO [mlp.up_proj_weight_quantizer] best_loss:0.0027484893798828125 
+[2025-07-10 23:03:05 root] (quant_utils.py 585): INFO [mlp.down_proj_input_quantizer] clipping factor: (0.550000011920929); best_loss:0.0017747879028320312 
+[2025-07-10 23:03:05 root] (quant_utils.py 637): INFO [mlp.down_proj_weight_quantizer] best_loss:0.0010099411010742188 
+[2025-07-10 23:03:05 root] (quant_utils.py 600): INFO [input_layernorm_output_quantizer] clipping factor: (0.6499999761581421); best_loss:0.0008950233459472656 
+[2025-07-10 23:03:06 root] (quant_utils.py 600): INFO [post_attention_layernorm_output_quantizer] clipping factor: (0.6499999761581421); best_loss:0.002132415771484375 
+[2025-07-10 23:03:06 root] (block_ap.py 261): INFO MSE init end
+[2025-07-10 23:03:06 root] (block_ap.py 235): INFO === Start quantize blocks 26===
+[2025-07-10 23:03:07 root] (block_ap.py 256): INFO MSE init start
+[2025-07-10 23:03:08 root] (quant_utils.py 645): INFO [self_attn_s_quantizer] clipping factor: (0.949999988079071); best_loss:4.565715789794922e-05 
+[2025-07-10 23:03:08 root] (quant_utils.py 634): INFO [self_attn.q_proj_weight_quantizer] best_loss:0.0060882568359375 
+[2025-07-10 23:03:08 root] (quant_utils.py 634): INFO [self_attn.k_proj_weight_quantizer] best_loss:0.006252288818359375 
+[2025-07-10 23:03:08 root] (quant_utils.py 597): INFO [self_attn.v_proj_output_quantizer] best_loss:0.005763041786849499 
+[2025-07-10 23:03:08 root] (quant_utils.py 637): INFO [self_attn.v_proj_weight_quantizer] best_loss:0.00487518310546875 
+[2025-07-10 23:03:09 root] (quant_utils.py 585): INFO [self_attn.o_proj_input_quantizer] clipping factor: (0.3499999940395355); best_loss:0.0030364990234375 
+[2025-07-10 23:03:09 root] (quant_utils.py 637): INFO [self_attn.o_proj_weight_quantizer] best_loss:0.0003662109375 
+[2025-07-10 23:03:09 root] (quant_utils.py 615): INFO [self_attn.apply_rotary_pos_emb_qk_rotation_wrapper_k_quantizer] best_loss:1.2685410410995246e-06 
+[2025-07-10 23:03:09 root] (quant_utils.py 637): INFO [mlp.gate_proj_weight_quantizer] best_loss:0.00341796875 
+[2025-07-10 23:03:09 root] (quant_utils.py 637): INFO [mlp.up_proj_weight_quantizer] best_loss:0.0029354095458984375 
+[2025-07-10 23:03:10 root] (quant_utils.py 585): INFO [mlp.down_proj_input_quantizer] clipping factor: (0.550000011920929); best_loss:0.002590179443359375 
+[2025-07-10 23:03:10 root] (quant_utils.py 637): INFO [mlp.down_proj_weight_quantizer] best_loss:0.0011777877807617188 
+[2025-07-10 23:03:11 root] (quant_utils.py 600): INFO [input_layernorm_output_quantizer] clipping factor: (0.6499999761581421); best_loss:0.0016508102416992188 
+[2025-07-10 23:03:11 root] (quant_utils.py 600): INFO [post_attention_layernorm_output_quantizer] clipping factor: (0.6499999761581421); best_loss:0.002910614013671875 
+[2025-07-10 23:03:11 root] (block_ap.py 261): INFO MSE init end
+[2025-07-10 23:03:12 root] (block_ap.py 235): INFO === Start quantize blocks 27===
+[2025-07-10 23:03:12 root] (block_ap.py 256): INFO MSE init start
+[2025-07-10 23:03:13 root] (quant_utils.py 645): INFO [self_attn_s_quantizer] clipping factor: (0.949999988079071); best_loss:1.9252300262451172e-05 
+[2025-07-10 23:03:13 root] (quant_utils.py 634): INFO [self_attn.q_proj_weight_quantizer] best_loss:0.00678253173828125 
+[2025-07-10 23:03:13 root] (quant_utils.py 634): INFO [self_attn.k_proj_weight_quantizer] best_loss:0.00693511962890625 
+[2025-07-10 23:03:13 root] (quant_utils.py 597): INFO [self_attn.v_proj_output_quantizer] best_loss:0.005799562204629183 
+[2025-07-10 23:03:13 root] (quant_utils.py 637): INFO [self_attn.v_proj_weight_quantizer] best_loss:0.005130767822265625 
+[2025-07-10 23:03:14 root] (quant_utils.py 585): INFO [self_attn.o_proj_input_quantizer] clipping factor: (0.25); best_loss:0.0035381317138671875 
+[2025-07-10 23:03:14 root] (quant_utils.py 637): INFO [self_attn.o_proj_weight_quantizer] best_loss:0.0002493858337402344 
+[2025-07-10 23:03:14 root] (quant_utils.py 615): INFO [self_attn.apply_rotary_pos_emb_qk_rotation_wrapper_k_quantizer] best_loss:1.3347612366487738e-06 
+[2025-07-10 23:03:14 root] (quant_utils.py 637): INFO [mlp.gate_proj_weight_quantizer] best_loss:0.0036106109619140625 
+[2025-07-10 23:03:14 root] (quant_utils.py 637): INFO [mlp.up_proj_weight_quantizer] best_loss:0.003131866455078125 
+[2025-07-10 23:03:15 root] (quant_utils.py 585): INFO [mlp.down_proj_input_quantizer] clipping factor: (0.44999998807907104); best_loss:0.0021114349365234375 
+[2025-07-10 23:03:15 root] (quant_utils.py 637): INFO [mlp.down_proj_weight_quantizer] best_loss:0.0013456344604492188 
+[2025-07-10 23:03:16 root] (quant_utils.py 600): INFO [input_layernorm_output_quantizer] clipping factor: (0.6499999761581421); best_loss:0.0008978843688964844 
+[2025-07-10 23:03:16 root] (quant_utils.py 600): INFO [post_attention_layernorm_output_quantizer] clipping factor: (0.6499999761581421); best_loss:0.0025196075439453125 
+[2025-07-10 23:03:16 root] (block_ap.py 261): INFO MSE init end
+[2025-07-10 23:03:17 root] (block_ap.py 235): INFO === Start quantize blocks 28===
+[2025-07-10 23:03:17 root] (block_ap.py 256): INFO MSE init start
+[2025-07-10 23:03:18 root] (quant_utils.py 645): INFO [self_attn_s_quantizer] clipping factor: (0.949999988079071); best_loss:3.814697265625e-05 
+[2025-07-10 23:03:18 root] (quant_utils.py 634): INFO [self_attn.q_proj_weight_quantizer] best_loss:0.006649017333984375 
+[2025-07-10 23:03:18 root] (quant_utils.py 634): INFO [self_attn.k_proj_weight_quantizer] best_loss:0.00687408447265625 
+[2025-07-10 23:03:18 root] (quant_utils.py 597): INFO [self_attn.v_proj_output_quantizer] best_loss:0.006518062204122543 
+[2025-07-10 23:03:18 root] (quant_utils.py 637): INFO [self_attn.v_proj_weight_quantizer] best_loss:0.005649566650390625 
+[2025-07-10 23:03:19 root] (quant_utils.py 585): INFO [self_attn.o_proj_input_quantizer] clipping factor: (0.3499999940395355); best_loss:0.004543304443359375 
+[2025-07-10 23:03:19 root] (quant_utils.py 637): INFO [self_attn.o_proj_weight_quantizer] best_loss:0.0003924369812011719 
+[2025-07-10 23:03:19 root] (quant_utils.py 615): INFO [self_attn.apply_rotary_pos_emb_qk_rotation_wrapper_k_quantizer] best_loss:1.2635663324545021e-06 
+[2025-07-10 23:03:19 root] (quant_utils.py 637): INFO [mlp.gate_proj_weight_quantizer] best_loss:0.003734588623046875 
+[2025-07-10 23:03:19 root] (quant_utils.py 637): INFO [mlp.up_proj_weight_quantizer] best_loss:0.0033416748046875 
+[2025-07-10 23:03:20 root] (quant_utils.py 585): INFO [mlp.down_proj_input_quantizer] clipping factor: (0.550000011920929); best_loss:0.0028476715087890625 
+[2025-07-10 23:03:20 root] (quant_utils.py 637): INFO [mlp.down_proj_weight_quantizer] best_loss:0.0017528533935546875 
+[2025-07-10 23:03:21 root] (quant_utils.py 600): INFO [input_layernorm_output_quantizer] clipping factor: (0.6499999761581421); best_loss:0.0013170242309570312 
+[2025-07-10 23:03:22 root] (quant_utils.py 600): INFO [post_attention_layernorm_output_quantizer] clipping factor: (0.6499999761581421); best_loss:0.003204345703125 
+[2025-07-10 23:03:22 root] (block_ap.py 261): INFO MSE init end
+[2025-07-10 23:03:22 root] (block_ap.py 235): INFO === Start quantize blocks 29===
+[2025-07-10 23:03:22 root] (block_ap.py 256): INFO MSE init start
+[2025-07-10 23:03:23 root] (quant_utils.py 645): INFO [self_attn_s_quantizer] clipping factor: (0.949999988079071); best_loss:5.3048133850097656e-05 
+[2025-07-10 23:03:23 root] (quant_utils.py 634): INFO [self_attn.q_proj_weight_quantizer] best_loss:0.005950927734375 
+[2025-07-10 23:03:23 root] (quant_utils.py 634): INFO [self_attn.k_proj_weight_quantizer] best_loss:0.00614166259765625 
+[2025-07-10 23:03:23 root] (quant_utils.py 597): INFO [self_attn.v_proj_output_quantizer] best_loss:0.0060991449281573296 
+[2025-07-10 23:03:23 root] (quant_utils.py 637): INFO [self_attn.v_proj_weight_quantizer] best_loss:0.00534820556640625 
+[2025-07-10 23:03:24 root] (quant_utils.py 585): INFO [self_attn.o_proj_input_quantizer] clipping factor: (0.44999998807907104); best_loss:0.0039043426513671875 
+[2025-07-10 23:03:24 root] (quant_utils.py 637): INFO [self_attn.o_proj_weight_quantizer] best_loss:0.0003609657287597656 
+[2025-07-10 23:03:24 root] (quant_utils.py 615): INFO [self_attn.apply_rotary_pos_emb_qk_rotation_wrapper_k_quantizer] best_loss:1.0891113788602524e-06 
+[2025-07-10 23:03:24 root] (quant_utils.py 637): INFO [mlp.gate_proj_weight_quantizer] best_loss:0.003940582275390625 
+[2025-07-10 23:03:25 root] (quant_utils.py 637): INFO [mlp.up_proj_weight_quantizer] best_loss:0.00356292724609375 
+[2025-07-10 23:03:25 root] (quant_utils.py 585): INFO [mlp.down_proj_input_quantizer] clipping factor: (0.550000011920929); best_loss:0.0038928985595703125 
+[2025-07-10 23:03:25 root] (quant_utils.py 637): INFO [mlp.down_proj_weight_quantizer] best_loss:0.0023517608642578125 
+[2025-07-10 23:03:26 root] (quant_utils.py 600): INFO [input_layernorm_output_quantizer] clipping factor: (0.6499999761581421); best_loss:0.0016965866088867188 
+[2025-07-10 23:03:27 root] (quant_utils.py 600): INFO [post_attention_layernorm_output_quantizer] clipping factor: (0.6499999761581421); best_loss:0.004093170166015625 
+[2025-07-10 23:03:27 root] (block_ap.py 261): INFO MSE init end
+[2025-07-10 23:03:27 root] (block_ap.py 235): INFO === Start quantize blocks 30===
+[2025-07-10 23:03:27 root] (block_ap.py 256): INFO MSE init start
+[2025-07-10 23:03:28 root] (quant_utils.py 645): INFO [self_attn_s_quantizer] clipping factor: (0.949999988079071); best_loss:4.559755325317383e-05 
+[2025-07-10 23:03:28 root] (quant_utils.py 634): INFO [self_attn.q_proj_weight_quantizer] best_loss:0.006439208984375 
+[2025-07-10 23:03:28 root] (quant_utils.py 634): INFO [self_attn.k_proj_weight_quantizer] best_loss:0.0067138671875 
+[2025-07-10 23:03:28 root] (quant_utils.py 597): INFO [self_attn.v_proj_output_quantizer] best_loss:0.007305249571800232 
+[2025-07-10 23:03:28 root] (quant_utils.py 637): INFO [self_attn.v_proj_weight_quantizer] best_loss:0.006072998046875 
+[2025-07-10 23:03:29 root] (quant_utils.py 585): INFO [self_attn.o_proj_input_quantizer] clipping factor: (0.25); best_loss:0.006595611572265625 
+[2025-07-10 23:03:29 root] (quant_utils.py 637): INFO [self_attn.o_proj_weight_quantizer] best_loss:0.00039315223693847656 
+[2025-07-10 23:03:29 root] (quant_utils.py 615): INFO [self_attn.apply_rotary_pos_emb_qk_rotation_wrapper_k_quantizer] best_loss:1.4581444247596664e-06 
+[2025-07-10 23:03:30 root] (quant_utils.py 637): INFO [mlp.gate_proj_weight_quantizer] best_loss:0.004131317138671875 
+[2025-07-10 23:03:30 root] (quant_utils.py 637): INFO [mlp.up_proj_weight_quantizer] best_loss:0.003711700439453125 
+[2025-07-10 23:03:30 root] (quant_utils.py 585): INFO [mlp.down_proj_input_quantizer] clipping factor: (0.44999998807907104); best_loss:0.00789642333984375 
+[2025-07-10 23:03:31 root] (quant_utils.py 637): INFO [mlp.down_proj_weight_quantizer] best_loss:0.0044708251953125 
+[2025-07-10 23:03:31 root] (quant_utils.py 600): INFO [input_layernorm_output_quantizer] clipping factor: (0.75); best_loss:0.0024471282958984375 
+[2025-07-10 23:03:32 root] (quant_utils.py 600): INFO [post_attention_layernorm_output_quantizer] clipping factor: (0.6499999761581421); best_loss:0.00598907470703125 
+[2025-07-10 23:03:32 root] (block_ap.py 261): INFO MSE init end
+[2025-07-10 23:03:32 root] (block_ap.py 235): INFO === Start quantize blocks 31===
+[2025-07-10 23:03:33 root] (block_ap.py 256): INFO MSE init start
+[2025-07-10 23:03:34 root] (quant_utils.py 645): INFO [self_attn_s_quantizer] clipping factor: (0.949999988079071); best_loss:0.00033974647521972656 
+[2025-07-10 23:03:34 root] (quant_utils.py 634): INFO [self_attn.q_proj_weight_quantizer] best_loss:0.004627227783203125 
+[2025-07-10 23:03:34 root] (quant_utils.py 634): INFO [self_attn.k_proj_weight_quantizer] best_loss:0.00510406494140625 
+[2025-07-10 23:03:34 root] (quant_utils.py 597): INFO [self_attn.v_proj_output_quantizer] best_loss:0.004590075928717852 
+[2025-07-10 23:03:34 root] (quant_utils.py 637): INFO [self_attn.v_proj_weight_quantizer] best_loss:0.003482818603515625 
+[2025-07-10 23:03:34 root] (quant_utils.py 585): INFO [self_attn.o_proj_input_quantizer] clipping factor: (0.44999998807907104); best_loss:0.01971435546875 
+[2025-07-10 23:03:34 root] (quant_utils.py 637): INFO [self_attn.o_proj_weight_quantizer] best_loss:0.0004887580871582031 
+[2025-07-10 23:03:35 root] (quant_utils.py 615): INFO [self_attn.apply_rotary_pos_emb_qk_rotation_wrapper_k_quantizer] best_loss:1.175681859422184e-06 
+[2025-07-10 23:03:35 root] (quant_utils.py 637): INFO [mlp.gate_proj_weight_quantizer] best_loss:0.003696441650390625 
+[2025-07-10 23:03:35 root] (quant_utils.py 637): INFO [mlp.up_proj_weight_quantizer] best_loss:0.003292083740234375 
+[2025-07-10 23:03:36 root] (quant_utils.py 585): INFO [mlp.down_proj_input_quantizer] clipping factor: (0.550000011920929); best_loss:0.048614501953125 
+[2025-07-10 23:03:36 root] (quant_utils.py 637): INFO [mlp.down_proj_weight_quantizer] best_loss:0.0217437744140625 
+[2025-07-10 23:03:36 root] (quant_utils.py 600): INFO [input_layernorm_output_quantizer] clipping factor: (0.6499999761581421); best_loss:0.021270751953125 
+[2025-07-10 23:03:37 root] (quant_utils.py 600): INFO [post_attention_layernorm_output_quantizer] clipping factor: (0.550000011920929); best_loss:0.0228424072265625 
+[2025-07-10 23:03:37 root] (block_ap.py 261): INFO MSE init end
+[2025-07-10 23:03:38 root] (main.py 318): INFO 167.1477084159851
+[2025-07-10 23:03:38 root] (main.py 322): INFO start saving model
+[2025-07-10 23:04:01 root] (main.py 329): INFO save model to ./pre_quantized_models/Llama-2-7b-hf-w4a4q4s8kv4 success
+[2025-07-10 23:04:01 root] (main.py 330): INFO LlamaForCausalLM(
+  (model): LlamaModel(
+    (embed_tokens): Embedding(32000, 4096)
+    (layers): ModuleList(
+      (0-31): 32 x LlamaDecoderLayer(
+        (self_attn): LlamaAttention(
+          (q_proj): QuantLinear(
+            (weight_quantizer): UniformAffineQuantizer()
+          )
+          (k_proj): QuantLinear(
+            (weight_quantizer): UniformAffineQuantizer()
+          )
+          (v_proj): QuantLinear(
+            (weight_quantizer): UniformAffineQuantizer()
+            (output_quantizer): UniformAffineQuantizer()
+          )
+          (o_proj): QuantLinear(
+            (weight_quantizer): UniformAffineQuantizer()
+            (input_quantizer): UniformAffineQuantizer()
+          )
+          (rotary_emb): LlamaRotaryEmbedding()
+          (apply_rotary_pos_emb_qk_rotation_wrapper): QKRotationWrapper(
+            (k_quantizer): UniformAffineQuantizer()
+            (q_quantizer): UniformAffineQuantizer()
+          )
+          (s_quantizer): UniformAffineQuantizer()
+        )
+        (mlp): LlamaMLP(
+          (gate_proj): QuantLinear(
+            (weight_quantizer): UniformAffineQuantizer()
+          )
+          (up_proj): QuantLinear(
+            (weight_quantizer): UniformAffineQuantizer()
+          )
+          (down_proj): QuantLinear(
+            (weight_quantizer): UniformAffineQuantizer()
+            (input_quantizer): UniformAffineQuantizer()
+          )
+          (act_fn): SiLU()
+        )
+        (input_layernorm): QuantRMSNorm(
+          (output_quantizer): UniformAffineQuantizer()
+        )
+        (post_attention_layernorm): QuantRMSNorm(
+          (output_quantizer): UniformAffineQuantizer()
+        )
+      )
+    )
+    (norm): RMSN()
+  )
+  (lm_head): Linear(in_features=4096, out_features=32000, bias=False)
+)
+[2025-07-10 23:04:03 datasets.load] (load.py 1600): WARNING Using the latest cached version of the dataset since wikitext couldn't be found on the Hugging Face Hub
+[2025-07-10 23:04:03 datasets.packaged_modules.cache.cache] (cache.py 72): WARNING Found the latest cached dataset configuration 'wikitext-2-raw-v1' at /home/xts/.cache/huggingface/datasets/wikitext/wikitext-2-raw-v1/0.0.0/b08601e04326c79dfdd32d625aee71d232d685c3 (last modified on Thu Mar 20 16:40:22 2025).
+[2025-07-10 23:04:03 datasets.load] (load.py 1600): WARNING Using the latest cached version of the dataset since wikitext couldn't be found on the Hugging Face Hub
+[2025-07-10 23:04:03 datasets.packaged_modules.cache.cache] (cache.py 72): WARNING Found the latest cached dataset configuration 'wikitext-2-raw-v1' at /home/xts/.cache/huggingface/datasets/wikitext/wikitext-2-raw-v1/0.0.0/b08601e04326c79dfdd32d625aee71d232d685c3 (last modified on Thu Mar 20 16:40:22 2025).
+[2025-07-10 23:05:18 root] (main.py 33): INFO wikitext2 perplexity: 6.67
+[2025-07-10 23:05:20 evaluate.loading] (loading.py 546): WARNING Using the latest cached version of the module from /home/xts/.cache/huggingface/modules/evaluate_modules/metrics/evaluate-metric--exact_match/9d3b67e0c429cd7460b2b05aab53419b48eea369b73e1d9f185a56ca90c373d4 (last modified on Thu Mar 20 17:57:59 2025) since it couldn't be found locally at evaluate-metric--exact_match, or remotely on the Hugging Face Hub.
+[2025-07-10 23:05:20 lm-eval] (huggingface.py 118): WARNING `pretrained` model kwarg is not of type `str`. Many other model arguments may be ignored. Please do not launch via accelerate or use `parallelize=True` if passing an existing model this way.
+[2025-07-10 23:05:20 lm-eval] (huggingface.py 337): WARNING Passed an already-initialized model through `pretrained`, assuming single-process call to evaluate() or custom distributed integration
+[2025-07-10 23:05:23 lm-eval] (evaluator.py 131): INFO Setting random seed to 0 | Setting numpy seed to 1234 | Setting torch manual seed to 1234
+[2025-07-10 23:05:26 lm-eval] (evaluator.py 222): WARNING Overwriting default num_fewshot of winogrande from None to 0
+[2025-07-10 23:05:26 lm-eval] (evaluator.py 222): WARNING Overwriting default num_fewshot of hellaswag from None to 0
+[2025-07-10 23:05:26 lm-eval] (evaluator.py 222): WARNING Overwriting default num_fewshot of arc_challenge from None to 0
+[2025-07-10 23:05:26 lm-eval] (evaluator.py 222): WARNING Overwriting default num_fewshot of arc_easy from None to 0
+[2025-07-10 23:05:26 lm-eval] (evaluator.py 222): WARNING Overwriting default num_fewshot of piqa from None to 0
+[2025-07-10 23:05:26 lm-eval] (task.py 395): INFO Building contexts for winogrande on rank 0...
+[2025-07-10 23:05:26 lm-eval] (task.py 395): INFO Building contexts for hellaswag on rank 0...
+[2025-07-10 23:05:29 lm-eval] (task.py 395): INFO Building contexts for arc_challenge on rank 0...
+[2025-07-10 23:05:29 lm-eval] (task.py 395): INFO Building contexts for arc_easy on rank 0...
+[2025-07-10 23:05:31 lm-eval] (task.py 395): INFO Building contexts for piqa on rank 0...
+[2025-07-10 23:05:31 lm-eval] (evaluator.py 362): INFO Running loglikelihood requests
+[2025-07-10 23:15:25 root] (main.py 53): INFO |    Tasks    |Version|Filter|n-shot| Metric |Value |   |Stderr|
+|-------------|------:|------|-----:|--------|-----:|---|-----:|
+|winogrande   |      1|none  |     0|acc     |0.6811|±  |0.0131|
+|hellaswag    |      1|none  |     0|acc     |0.5355|±  |0.0050|
+|             |       |none  |     0|acc_norm|0.7283|±  |0.0044|
+|arc_challenge|      1|none  |     0|acc     |0.4113|±  |0.0144|
+|             |       |none  |     0|acc_norm|0.4224|±  |0.0144|
+|arc_easy     |      1|none  |     0|acc     |0.7391|±  |0.0090|
+|             |       |none  |     0|acc_norm|0.7092|±  |0.0093|
+|piqa         |      1|none  |     0|acc     |0.7557|±  |0.0100|
+|             |       |none  |     0|acc_norm|0.7671|±  |0.0099|
+|             |       |      |      |mean_acc|0.6616|   |      |
+
+[2025-07-10 23:15:25 root] (main.py 65): INFO Average Acc: 62.45%
+[2025-07-10 23:15:25 root] (main.py 66): INFO Average Acc (with norm): 66.16%
+[2025-07-10 23:15:25 root] (main.py 67): INFO Results string: 6.67 68.11 53.55 72.83 41.13 42.24 73.91 70.92 75.57 76.71

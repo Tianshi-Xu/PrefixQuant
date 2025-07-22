@@ -1,0 +1,58 @@
+[2025-07-12 15:24:20 root] (eval.py 67): INFO args: Namespace(quant_model_path='./pre_quantized_models/Llama-2-7b-hf-w4a4q4s8kv4', output_dir='./log/test', real_quant=False, ppl_seqlen=2048, seed=2, eval_ppl=True, eval_tasks='piqa,arc_easy,arc_challenge,hellaswag,winogrande', eval_batch_size=192, max_memory='70GiB')
+[2025-07-12 15:24:21 root] (eval.py 98): INFO init weight quantizer
+[2025-07-12 15:24:21 root] (eval.py 103): INFO init input quantizer
+[2025-07-12 15:24:21 root] (eval.py 108): INFO init v quantizer
+[2025-07-12 15:24:21 root] (eval.py 114): INFO init k quantizer
+[2025-07-12 15:24:21 root] (eval.py 118): INFO init s quantizer
+[2025-07-12 15:24:23 root] (eval.py 128): INFO LlamaForCausalLM(
+  (model): LlamaModel(
+    (embed_tokens): Embedding(32000, 4096)
+    (layers): ModuleList(
+      (0-31): 32 x LlamaDecoderLayer(
+        (self_attn): LlamaSdpaAttention(
+          (q_proj): QuantLinear(
+            (weight_quantizer): UniformAffineQuantizer()
+          )
+          (k_proj): QuantLinear(
+            (weight_quantizer): UniformAffineQuantizer()
+          )
+          (v_proj): QuantLinear(
+            (weight_quantizer): UniformAffineQuantizer()
+            (output_quantizer): UniformAffineQuantizer()
+          )
+          (o_proj): QuantLinear(
+            (weight_quantizer): UniformAffineQuantizer()
+            (input_quantizer): UniformAffineQuantizer()
+          )
+          (rotary_emb): LlamaRotaryEmbedding()
+          (apply_rotary_pos_emb_qk_rotation_wrapper): QKRotationWrapper(
+            (k_quantizer): UniformAffineQuantizer()
+            (q_quantizer): UniformAffineQuantizer()
+          )
+          (s_quantizer): UniformAffineQuantizer()
+        )
+        (mlp): LlamaMLP(
+          (gate_proj): QuantLinear(
+            (weight_quantizer): UniformAffineQuantizer()
+          )
+          (up_proj): QuantLinear(
+            (weight_quantizer): UniformAffineQuantizer()
+          )
+          (down_proj): QuantLinear(
+            (weight_quantizer): UniformAffineQuantizer()
+            (input_quantizer): UniformAffineQuantizer()
+          )
+          (act_fn): SiLU()
+        )
+        (input_layernorm): QuantRMSNorm(
+          (output_quantizer): UniformAffineQuantizer()
+        )
+        (post_attention_layernorm): QuantRMSNorm(
+          (output_quantizer): UniformAffineQuantizer()
+        )
+      )
+    )
+    (norm): LlamaRMSNorm()
+  )
+  (lm_head): Linear(in_features=4096, out_features=32000, bias=False)
+)
