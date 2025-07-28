@@ -195,7 +195,7 @@ class UniformAffineQuantizer(nn.Module):
         x_int = round_ste(x_reshaped / scale)
         if round_zero_point is not None:
             x_int = x_int.add(round_zero_point)
-        x_int = x_int.clamp(self.qmin, self.qmax)
+        # x_int = x_int.clamp(self.qmin, self.qmax)
         x_dequant = x_int
         if round_zero_point is not None:
             x_dequant = x_dequant.sub(round_zero_point)
@@ -224,7 +224,7 @@ class UniformAffineQuantizer(nn.Module):
         x_int = round_ste(x_reshaped / scale)
         if round_zero_point is not None:
             x_int = x_int.add(round_zero_point)
-        x_int = x_int.clamp(self.qmin, self.qmax)
+        # x_int = x_int.clamp(self.qmin, self.qmax)
         return x_int
     
     def custom_quant(self, x, scale, zero_point):

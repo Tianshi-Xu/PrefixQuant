@@ -133,7 +133,7 @@ def main():
     b_acc = compute_bacc(model)
     logger.info(f"b_acc: {b_acc}")
     # exit(0)
-    # evaluate(model, tokenizer, prefixed_key_values,  args,logger)
+    evaluate(model, tokenizer, prefixed_key_values,  args,logger)
 
 
 
