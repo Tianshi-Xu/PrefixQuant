@@ -8,7 +8,6 @@ from utils.data_utils import get_loaders, test_ppl
 from quantize.block_ap import block_ap
 from pathlib import Path
 from transformers import AutoTokenizer, AutoConfig, AutoModelForCausalLM
-from transformers import LlamaForCausalLM
 from quantize.int_linear_real import load_quantized_model
 from accelerate import infer_auto_device_map, dispatch_model
 from accelerate.hooks import remove_hook_from_module
