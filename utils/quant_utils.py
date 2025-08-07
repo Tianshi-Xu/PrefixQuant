@@ -16,6 +16,7 @@ from tqdm import tqdm
 from transformers.models.llama.modeling_llama import repeat_kv
 from transformers.models.llama.modeling_llama import LlamaAttention
 import math
+from einops import rearrange,reduce
 
 
 def get_act_stat(model, dataloader, accumulate_type='max', prefixed_tokens=None, online_had=False):
@@ -28,14 +29,15 @@ def get_act_stat(model, dataloader, accumulate_type='max', prefixed_tokens=None,
     device = next(model.parameters()).device
     act_stat = {}
     prefixed_length = len(prefixed_tokens) if prefixed_tokens is not None else 0
-
+    print("prefixed_length:",prefixed_length)
     if online_had:
         had_K, K = hadamard_utils.get_hadK(model.config.intermediate_size)
 
-    def stat_tensor(name, tensor, type):
-        hidden_dim = tensor.shape[-1]
-        tensor = tensor.view(-1, hidden_dim).abs().detach()
+    def stat_tensor(name, tensor, type, is_s = False):
         ema_factor = 0.99
+        if not is_s:            
+            hidden_dim = tensor.shape[-1]
+            tensor = tensor.view(-1, hidden_dim).abs().detach()
         if accumulate_type == 'max':
             comming_max = torch.max(tensor, dim=0)[0].float().cpu()
         elif accumulate_type == 'mean':
@@ -62,8 +64,10 @@ def get_act_stat(model, dataloader, accumulate_type='max', prefixed_tokens=None,
             stat_tensor(name, output_Q, 'output_Q')
             stat_tensor(name, output_K, 'output_K')
         elif isinstance(m, LlamaAttention):
+            # print(f"m: {m}")
             # print("shape of S:",y[1].shape)
-            stat_tensor(name, y[1], "s")
+            s_stat = y[1][:,:,prefixed_length:,prefixed_length:]
+            stat_tensor(name, s_stat, "s", True)
         else:
             if isinstance(x, tuple):
                 x = x[0]
@@ -145,7 +149,7 @@ def init_weight_quantizer(args, model, minmax_init=True):
                                                            quant_type='weight',
                                                            minmax_init=minmax_init)
             sym_stat = "asymmetric" if w_asym else 'symmetric'
-            print(f'weight quantization: set {name} as w{wbits}g{w_group_size} {sym_stat} quantization')
+            # print(f'weight quantization: set {name} as w{wbits}g{w_group_size} {sym_stat} quantization')
 
 def init_input_quantizer(args, model, activation_stat=None, minmax_init=True):
     for name, module in model.named_modules():
@@ -173,7 +177,7 @@ def init_input_quantizer(args, model, activation_stat=None, minmax_init=True):
                                                             activation_clipping=activation_clipping,
                                                             minmax_init=minmax_init)
             sym_stat = "asymmetric" if input_asym else 'symmetric'
-            print(f'input activation quantization: set {name} as {input_bits}-bit {input_group_size} groupsize {input_mode} {sym_stat} quantization')
+            # print(f'input activation quantization: set {name} as {input_bits}-bit {input_group_size} groupsize {input_mode} {sym_stat} quantization')
         elif isinstance(module,(QuantRMSNorm)):
             # quantization for the input of q_proj/k_proj/v_porj/up_proj/gate_proj are putted in normalization layer
             output_bits = args.input_bits
@@ -194,7 +198,7 @@ def init_input_quantizer(args, model, activation_stat=None, minmax_init=True):
                                                             activation_clipping=activation_clipping,
                                                             minmax_init=minmax_init)
             sym_stat = "asymmetric" if output_asym else 'symmetric'
-            print(f'output activation quantization: set {name} as {output_bits}-bit {output_group_size} groupsize {output_mode} {sym_stat} quantization')
+            # print(f'output activation quantization: set {name} as {output_bits}-bit {output_group_size} groupsize {output_mode} {sym_stat} quantization')
 
 def init_s_quantizer(args, model, activation_stat=None, minmax_init=True):
     for name, module in model.named_modules():
@@ -208,6 +212,7 @@ def init_s_quantizer(args, model, activation_stat=None, minmax_init=True):
             input_asym = args.input_asym
             input_mode = args.input_mode
             input_stat = activation_stat[f'{name}.s'] if activation_stat is not None else None
+            # print("s.stat.shape:",input_stat.shape)
             activation_clipping=args.activation_clipping
             module.use_act_quant = True
             quantized_shape = (1,1)
@@ -216,9 +221,9 @@ def init_s_quantizer(args, model, activation_stat=None, minmax_init=True):
                                                             quant_type='activation',
                                                             mode=input_mode, 
                                                             activation_clipping=activation_clipping,
-                                                            minmax_init=minmax_init,per_tensor=True)
+                                                            minmax_init=minmax_init,is_s=True)
             sym_stat = "asymmetric" if input_asym else 'symmetric'
-            print(f's activation quantization: set {name} as {s_bits}-bit {input_group_size} groupsize {input_mode} {sym_stat} quantization')
+            # print(f's activation quantization: set {name} as {s_bits}-bit {input_group_size} groupsize {input_mode} {sym_stat} quantization')
 
 def init_v_quantizer(args, model, activation_stat=None, minmax_init=True):
     # for the quantization of k/v output (kv-cache quantization)
@@ -242,7 +247,7 @@ def init_v_quantizer(args, model, activation_stat=None, minmax_init=True):
                                                             minmax_init=minmax_init,
                                                             activation_clipping=activation_clipping)
             sym_stat = "asymmetric" if output_asym else 'symmetric'
-            print(f'v-cache quantization: set {name} as {output_bits}-bit {output_group_size} groupsize {output_mode} {sym_stat} quantization')
+            # print(f'v-cache quantization: set {name} as {output_bits}-bit {output_group_size} groupsize {output_mode} {sym_stat} quantization')
     
     
 def init_k_quantizer(args, model, activation_stat=None, minmax_init=True):
@@ -251,6 +256,7 @@ def init_k_quantizer(args, model, activation_stat=None, minmax_init=True):
     model_dim = model.config.hidden_size
     head_dim = model_dim // num_heads
     kv_dim = num_kv_heads * head_dim
+    q_dim = num_heads * head_dim
     assert args.kv_group_size in [-1, head_dim], f'Only token-wise/{head_dim}g quantization is supported for K-cache'
     # for the quantization of k/v output (kv-cache quantization)
     if args.k_pre_rope:
@@ -272,7 +278,7 @@ def init_k_quantizer(args, model, activation_stat=None, minmax_init=True):
                                                                 mode=output_mode,
                                                                 minmax_init=minmax_init)
                 sym_stat = "asymmetric" if output_asym else 'symmetric'
-                print(f'k-cache quantization: set {name} as {output_bits}-bit {output_group_size} groupsize {output_mode} {sym_stat} quantization')
+                # print(f'k-cache quantization: set {name} as {output_bits}-bit {output_group_size} groupsize {output_mode} {sym_stat} quantization')
     else:
         for name, module in model.named_modules():
             if isinstance(module, rotation_utils.QKRotationWrapper):
@@ -284,6 +290,8 @@ def init_k_quantizer(args, model, activation_stat=None, minmax_init=True):
                 output_mode = args.kv_mode
                 output_stat = activation_stat[f'{name}.output_K'] if activation_stat is not None else None
                 q_output_stat = activation_stat[f'{name}.output_Q'] if activation_stat is not None else None
+                # print("q.stat.shape:",q_output_stat.shape)
+                # print("k.stat.shape:",output_stat.shape)
                 module.use_k_quant = True
                 module.k_bits = output_bits
                 module.q_bits = output_bits
@@ -294,13 +302,16 @@ def init_k_quantizer(args, model, activation_stat=None, minmax_init=True):
                                                                 quant_type='activation',
                                                                 mode=output_mode,
                                                                 minmax_init=minmax_init)
-                module.q_quantizer = UniformAffineQuantizer(output_bits, quantized_shape, output_asym, output_group_size,
+                q_quantized_shape = (1,q_dim)
+                module.q_quantizer = UniformAffineQuantizer(output_bits, q_quantized_shape, output_asym, output_group_size,
                                                                 quantized_item_stat=q_output_stat,
                                                                 quant_type='activation',
                                                                 mode=output_mode,
                                                                 minmax_init=minmax_init)
                 sym_stat = "asymmetric" if output_asym else 'symmetric'
-                print(f'k-cache quantization: set {name} as {output_bits}-bit {output_group_size} groupsize {output_mode} {sym_stat} quantization')
+                # print("q.scale.shape:",module.q_quantizer.scale.shape)
+                # print("k.scale.shape:",module.k_quantizer.scale.shape)
+                # print(f'q and k-cache quantization: set {name} as {output_bits}-bit {output_group_size} groupsize {output_mode} {sym_stat} quantization')
                 
        
 @torch.no_grad()
@@ -576,6 +587,7 @@ def mse_init(qblock, prefixed_key_values, dev, data_inputs, attention_mask, posi
     # print(qblock)
     for name, module in qblock.named_modules():
         if isinstance(module, (int_linear_fake.QuantLinear,QuantRMSNorm,QKRotationWrapper)):
+            logger.info(f"quantizer: {name}")
             module.set_quant_state(weight_quant=False,act_quant=True)
             # init input quantizer
             if hasattr(module,'input_quantizer')  and module.input_quantizer.n_bits<16:
@@ -611,12 +623,25 @@ def mse_init(qblock, prefixed_key_values, dev, data_inputs, attention_mask, posi
             if hasattr(module,'k_quantizer') and module.k_quantizer.mode=='static' and module.k_quantizer.n_bits<16:
                 module.k_quantizer.activate()
                 if module.k_quantizer.inc_groups > 1:
+                    logger.info("k quantizer use k_cache_mse_init")
                     best_loss = k_cache_mse_init(module,output_activation_dict[name], softmax=True)
                     logger.info(f"[{name}_k_quantizer] best_loss:{best_loss} ")
                 else:
+                    logger.info("k quantizer use block_mse_init_static")
                     best_clip_factor, best_loss = block_mse_init_static(module.k_quantizer, qblock, prefixed_key_values, dev, data_inputs, data_gts, batch_attention_mask, position_ids)
                     logger.info(f"[{name}_k_quantizer] clipping factor: ({best_clip_factor:.2f}); best_loss:{best_loss} ")
             
+            # init q quantizer
+            if hasattr(module,'q_quantizer') and module.q_quantizer.mode=='static' and module.q_quantizer.n_bits<16:
+                module.q_quantizer.activate()
+                if module.q_quantizer.inc_groups > 1:
+                    logger.info("q quantizer use k_cache_mse_init")
+                    best_loss = k_cache_mse_init(module,output_activation_dict[name], softmax=True)
+                    logger.info(f"[{name}_q_quantizer] best_loss:{best_loss} ")
+                else:
+                    logger.info("q quantizer use block_mse_init_static")
+                    best_clip_factor, best_loss = block_mse_init_static(module.q_quantizer, qblock, prefixed_key_values, dev, data_inputs, data_gts, batch_attention_mask, position_ids)
+                    logger.info(f"[{name}_q_quantizer] clipping factor: ({best_clip_factor:.2f}); best_loss:{best_loss} ")
             
             module.set_quant_state(weight_quant=True,act_quant=False)
 
@@ -637,13 +662,12 @@ def mse_init(qblock, prefixed_key_values, dev, data_inputs, attention_mask, posi
                         logger.info(f"[{name}_weight_quantizer] best_loss:{best_loss} ")
             module.set_quant_state(weight_quant=False,act_quant=False)
         elif isinstance(module, LlamaAttention):
-            if module.s_quantizer is not None and module.s_quantizer.n_bits<16:
+            if hasattr(module,'s_quantizer') and module.s_quantizer is not None and module.s_quantizer.n_bits<16:
                 assert module.s_quantizer.mode=='static'
                 if module.s_quantizer.mode=='static':
                     module.s_quantizer.activate()
                     best_clip_factor, best_loss = block_mse_init_static(module.s_quantizer, qblock, prefixed_key_values, dev, data_inputs, data_gts, batch_attention_mask, position_ids)
                     logger.info(f"[{name}_s_quantizer] clipping factor: ({best_clip_factor}); best_loss:{best_loss} ")
-                    module.s_quantizer.deactivate()
     # exit(0)
     # end of part 2
             

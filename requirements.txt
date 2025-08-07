@@ -1,4 +1,4 @@
-accelerate==0.28.0
+accelerate==0.32.0
 bitsandbytes==0.41.0
 datasets==2.18.0
 lm_eval==0.4.2
@@ -11,4 +11,5 @@ termcolor
 sentencepiece
 protobuf
 matplotlib
+
 

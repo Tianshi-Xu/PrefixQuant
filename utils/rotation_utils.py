@@ -340,17 +340,19 @@ class QKRotationWrapper(torch.nn.Module):
         if self.online_had:
             q = hadamard_transform(q.float(), scale=1/math.sqrt(q.shape[-1])).to(dtype)
             k = hadamard_transform(k.float(), scale=1/math.sqrt(k.shape[-1])).to(dtype)
-        (bsz, num_heads, seq_len, head_dim) = k.shape
+        
         
         if self.use_k_quant and self.k_bits < 16:
+            (bsz, num_heads, seq_len, head_dim) = k.shape
             k = k.transpose(1, 2).flatten(-2)
+            # print("in QKWrapper k.shape", k.shape)
             k = self.k_quantizer(k).reshape((bsz, seq_len, num_heads, head_dim)).transpose(1, 2).to(q)
         if self.use_q_quant and self.q_bits < 16:
+            (bsz, num_heads, seq_len, head_dim) = q.shape
             q = q.transpose(1, 2).flatten(-2)
+            # print("in QKWrapper q.shape", q.shape)
             q = self.q_quantizer(q).reshape((bsz, seq_len, num_heads, head_dim)).transpose(1, 2).to(q)
         return q, k
-
-
 
 def add_qk_rotation_wrapper_after_function_call_in_forward(module, function_name, *args, **kwargs):
     '''

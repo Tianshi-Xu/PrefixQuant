@@ -1,0 +1,299 @@
+[2025-08-07 21:05:17 root] (eval.py 128): INFO args: Namespace(quant_model_path='./pre_quantized_models/Llama-3-8B-w4a4q4s8kv4-log2', output_dir='./log/test', real_quant=False, ppl_seqlen=2048, seed=2, eval_ppl=True, eval_tasks='piqa,arc_easy,arc_challenge,hellaswag,winogrande', eval_batch_size=64, max_memory='70GiB')
+[2025-08-07 21:05:51 root] (eval.py 163): INFO init weight quantizer
+[2025-08-07 21:05:51 root] (eval.py 168): INFO init input quantizer
+[2025-08-07 21:05:51 root] (eval.py 173): INFO init v quantizer
+[2025-08-07 21:05:51 root] (eval.py 179): INFO init k quantizer
+[2025-08-07 21:05:51 root] (eval.py 183): INFO init s quantizer
+[2025-08-07 21:07:16 root] (eval.py 191): INFO LlamaForCausalLM(
+  (model): LlamaModel(
+    (embed_tokens): Embedding(128256, 4096)
+    (layers): ModuleList(
+      (0-31): 32 x LlamaDecoderLayer(
+        (self_attn): LlamaAttention(
+          (q_proj): QuantLinear(
+            (weight_quantizer): UniformAffineQuantizer(
+              n_bits=4
+              quantized_shape=torch.Size([4096, 4096])
+              group_size=4096
+              quant_type='weight'
+              mode='static'
+              asym=False
+              disable_zero_point_in_sym=True
+              activation_clipping=False
+              enable=True
+              is_s=False
+              qmin=-8, qmax=7
+              scale_shape=(4096, 1)
+              zero_point=None
+            )
+          )
+          (k_proj): QuantLinear(
+            (weight_quantizer): UniformAffineQuantizer(
+              n_bits=4
+              quantized_shape=torch.Size([1024, 4096])
+              group_size=4096
+              quant_type='weight'
+              mode='static'
+              asym=False
+              disable_zero_point_in_sym=True
+              activation_clipping=False
+              enable=True
+              is_s=False
+              qmin=-8, qmax=7
+              scale_shape=(1024, 1)
+              zero_point=None
+            )
+          )
+          (v_proj): QuantLinear(
+            (weight_quantizer): UniformAffineQuantizer(
+              n_bits=4
+              quantized_shape=torch.Size([1024, 4096])
+              group_size=4096
+              quant_type='weight'
+              mode='static'
+              asym=False
+              disable_zero_point_in_sym=True
+              activation_clipping=False
+              enable=True
+              is_s=False
+              qmin=-8, qmax=7
+              scale_shape=(1024, 1)
+              zero_point=None
+            )
+            (output_quantizer): UniformAffineQuantizer(
+              n_bits=4
+              quantized_shape=(1, 1024)
+              group_size=128
+              quant_type='activation'
+              mode='static'
+              asym=False
+              disable_zero_point_in_sym=True
+              activation_clipping=False
+              enable=True
+              is_s=False
+              qmin=-8, qmax=7
+              scale_shape=(8, 1)
+              zero_point=None
+            )
+          )
+          (o_proj): QuantLinear(
+            (weight_quantizer): UniformAffineQuantizer(
+              n_bits=4
+              quantized_shape=torch.Size([4096, 4096])
+              group_size=4096
+              quant_type='weight'
+              mode='static'
+              asym=False
+              disable_zero_point_in_sym=True
+              activation_clipping=False
+              enable=True
+              is_s=False
+              qmin=-8, qmax=7
+              scale_shape=(4096, 1)
+              zero_point=None
+            )
+            (input_quantizer): UniformAffineQuantizer(
+              n_bits=4
+              quantized_shape=(1, 4096)
+              group_size=4096
+              quant_type='activation'
+              mode='static'
+              asym=False
+              disable_zero_point_in_sym=True
+              activation_clipping=False
+              enable=True
+              is_s=False
+              qmin=-8, qmax=7
+              scale_shape=(1, 1)
+              zero_point=None
+            )
+          )
+          (rotary_emb): LlamaRotaryEmbedding()
+          (apply_rotary_pos_emb_qk_rotation_wrapper): QKRotationWrapper(
+            (k_quantizer): UniformAffineQuantizer(
+              n_bits=4
+              quantized_shape=(1, 1024)
+              group_size=128
+              quant_type='activation'
+              mode='static'
+              asym=False
+              disable_zero_point_in_sym=True
+              activation_clipping=False
+              enable=True
+              is_s=False
+              qmin=-8, qmax=7
+              scale_shape=(8, 1)
+              zero_point=None
+            )
+            (q_quantizer): UniformAffineQuantizer(
+              n_bits=4
+              quantized_shape=(1, 4096)
+              group_size=128
+              quant_type='activation'
+              mode='static'
+              asym=False
+              disable_zero_point_in_sym=True
+              activation_clipping=False
+              enable=True
+              is_s=False
+              qmin=-8, qmax=7
+              scale_shape=(32, 1)
+              zero_point=None
+            )
+          )
+          (s_quantizer): UniformAffineQuantizer(
+            n_bits=8
+            quantized_shape=(1, 1)
+            group_size=1
+            quant_type='activation'
+            mode='static'
+            asym=False
+            disable_zero_point_in_sym=True
+            activation_clipping=False
+            enable=True
+            is_s=True
+            qmin=-128, qmax=127
+            scale_shape=(32, 1, 1)
+            zero_point=None
+          )
+        )
+        (mlp): LlamaMLP(
+          (gate_proj): QuantLinear(
+            (weight_quantizer): UniformAffineQuantizer(
+              n_bits=4
+              quantized_shape=torch.Size([14336, 4096])
+              group_size=4096
+              quant_type='weight'
+              mode='static'
+              asym=False
+              disable_zero_point_in_sym=True
+              activation_clipping=False
+              enable=True
+              is_s=False
+              qmin=-8, qmax=7
+              scale_shape=(14336, 1)
+              zero_point=None
+            )
+          )
+          (up_proj): QuantLinear(
+            (weight_quantizer): UniformAffineQuantizer(
+              n_bits=4
+              quantized_shape=torch.Size([14336, 4096])
+              group_size=4096
+              quant_type='weight'
+              mode='static'
+              asym=False
+              disable_zero_point_in_sym=True
+              activation_clipping=False
+              enable=True
+              is_s=False
+              qmin=-8, qmax=7
+              scale_shape=(14336, 1)
+              zero_point=None
+            )
+          )
+          (down_proj): QuantLinear(
+            (weight_quantizer): UniformAffineQuantizer(
+              n_bits=4
+              quantized_shape=torch.Size([4096, 14336])
+              group_size=14336
+              quant_type='weight'
+              mode='static'
+              asym=False
+              disable_zero_point_in_sym=True
+              activation_clipping=False
+              enable=True
+              is_s=False
+              qmin=-8, qmax=7
+              scale_shape=(4096, 1)
+              zero_point=None
+            )
+            (input_quantizer): UniformAffineQuantizer(
+              n_bits=4
+              quantized_shape=(1, 14336)
+              group_size=14336
+              quant_type='activation'
+              mode='static'
+              asym=False
+              disable_zero_point_in_sym=True
+              activation_clipping=False
+              enable=True
+              is_s=False
+              qmin=-8, qmax=7
+              scale_shape=(1, 1)
+              zero_point=None
+            )
+          )
+          (act_fn): SiLU()
+        )
+        (input_layernorm): QuantRMSNorm(
+          (output_quantizer): UniformAffineQuantizer(
+            n_bits=4
+            quantized_shape=(1, 4096)
+            group_size=4096
+            quant_type='activation'
+            mode='static'
+            asym=False
+            disable_zero_point_in_sym=True
+            activation_clipping=False
+            enable=True
+            is_s=False
+            qmin=-8, qmax=7
+            scale_shape=(1, 1)
+            zero_point=None
+          )
+        )
+        (post_attention_layernorm): QuantRMSNorm(
+          (output_quantizer): UniformAffineQuantizer(
+            n_bits=4
+            quantized_shape=(1, 4096)
+            group_size=4096
+            quant_type='activation'
+            mode='static'
+            asym=False
+            disable_zero_point_in_sym=True
+            activation_clipping=False
+            enable=True
+            is_s=False
+            qmin=-8, qmax=7
+            scale_shape=(1, 1)
+            zero_point=None
+          )
+        )
+      )
+    )
+    (norm): LlamaRMSNorm()
+  )
+  (lm_head): Linear(in_features=4096, out_features=128256, bias=False)
+)
+[2025-08-07 21:07:17 root] (eval.py 195): INFO b_acc: {'self_attn.q_proj': 17, 'self_attn.k_proj': 17, 'self_attn.v_proj': 17, 'self_attn.o_proj': 17, 'mlp.gate_proj': 17, 'mlp.up_proj': 17, 'mlp.down_proj': 18}
+[2025-08-07 21:13:51 root] (main.py 34): INFO wikitext2 perplexity: 7.93
+[2025-08-07 21:13:59 lm-eval] (huggingface.py 118): WARNING `pretrained` model kwarg is not of type `str`. Many other model arguments may be ignored. Please do not launch via accelerate or use `parallelize=True` if passing an existing model this way.
+[2025-08-07 21:14:00 lm-eval] (huggingface.py 337): WARNING Passed an already-initialized model through `pretrained`, assuming single-process call to evaluate() or custom distributed integration
+[2025-08-07 21:14:04 lm-eval] (evaluator.py 131): INFO Setting random seed to 0 | Setting numpy seed to 1234 | Setting torch manual seed to 1234
+[2025-08-07 21:14:11 lm-eval] (evaluator.py 222): WARNING Overwriting default num_fewshot of winogrande from None to 0
+[2025-08-07 21:14:11 lm-eval] (evaluator.py 222): WARNING Overwriting default num_fewshot of hellaswag from None to 0
+[2025-08-07 21:14:11 lm-eval] (evaluator.py 222): WARNING Overwriting default num_fewshot of arc_challenge from None to 0
+[2025-08-07 21:14:11 lm-eval] (evaluator.py 222): WARNING Overwriting default num_fewshot of arc_easy from None to 0
+[2025-08-07 21:14:11 lm-eval] (evaluator.py 222): WARNING Overwriting default num_fewshot of piqa from None to 0
+[2025-08-07 21:14:11 lm-eval] (task.py 395): INFO Building contexts for winogrande on rank 0...
+[2025-08-07 21:14:11 lm-eval] (task.py 395): INFO Building contexts for hellaswag on rank 0...
+[2025-08-07 21:14:15 lm-eval] (task.py 395): INFO Building contexts for arc_challenge on rank 0...
+[2025-08-07 21:14:16 lm-eval] (task.py 395): INFO Building contexts for arc_easy on rank 0...
+[2025-08-07 21:14:18 lm-eval] (task.py 395): INFO Building contexts for piqa on rank 0...
+[2025-08-07 21:14:20 lm-eval] (evaluator.py 362): INFO Running loglikelihood requests
+[2025-08-07 21:47:59 root] (main.py 52): INFO |    Tasks    |Version|Filter|n-shot| Metric |Value |   |Stderr|
+|-------------|------:|------|-----:|--------|-----:|---|-----:|
+|winogrande   |      1|none  |     0|acc     |0.6851|±  |0.0131|
+|hellaswag    |      1|none  |     0|acc     |0.5674|±  |0.0049|
+|             |       |none  |     0|acc_norm|0.7541|±  |0.0043|
+|arc_challenge|      1|none  |     0|acc     |0.4258|±  |0.0144|
+|             |       |none  |     0|acc_norm|0.4616|±  |0.0146|
+|arc_easy     |      1|none  |     0|acc     |0.7441|±  |0.0090|
+|             |       |none  |     0|acc_norm|0.7159|±  |0.0093|
+|piqa         |      1|none  |     0|acc     |0.7503|±  |0.0101|
+|             |       |none  |     0|acc_norm|0.7720|±  |0.0098|
+
+[2025-08-07 21:47:59 root] (main.py 64): INFO Average Acc: 63.45%
+[2025-08-07 21:47:59 root] (main.py 65): INFO Average Acc (with norm): 67.78%
+[2025-08-07 21:47:59 root] (main.py 66): INFO Results string: 7.93 68.51 56.74 75.41 42.58 46.16 74.41 71.59 75.03 77.20

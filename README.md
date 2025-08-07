@@ -19,7 +19,7 @@ Official PyTorch implement for [PrefixQuant: Eliminating Outliers by Prefixed To
 
 ## Installation
 ```
-conda create -n prefixquant python==3.9
+conda create -n prefixquant python==3.10
 
 conda activate prefixquant
 

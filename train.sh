@@ -1,8 +1,8 @@
 ### PrefixQuant
-CUDA_VISIBLE_DEVICES=2 python main.py \
---model_path /opt/pretrained_models/Llama-2-7b-hf  \
+CUDA_VISIBLE_DEVICES=1 python main.py \
+--model_path /opt/pretrained_models/Llama-2-7b-hf \
 --model_name Llama-2-7b-hf \
---output_dir ./log/Llama-2-7b-hf-w4a4q4s8kv4 \
+--output_dir ./log/Llama-2-7b-hf-w4a4q4s8kv4-log2 \
 --wbits 4 \
 --input_bits 4 \
 --input_mode static \
@@ -18,4 +18,5 @@ CUDA_VISIBLE_DEVICES=2 python main.py \
 --set_prefixed_tokens \
 --eval_ppl \
 --eval_tasks  piqa,arc_easy,arc_challenge,hellaswag,winogrande \
---save_quant_dir ./pre_quantized_models/Llama-2-7b-hf-w4a4q4s8kv4
+--eval_batch_size 64 \
+--save_quant_dir ./pre_quantized_models/Llama-2-7b-hf-w4a4q4s8kv4-log2

@@ -226,8 +226,6 @@ def block_ap(
         fp_val_inps_with_quant = copy_block_dataset(fp_val_inps)
     else:
         raise NotImplementedError
-       
-    
     
     # step 6: start training    
     loss_func = get_recon_loss(args.loss_type) 
@@ -328,7 +326,7 @@ def block_ap(
                 zeros = zeros.view(dim0,-1).transpose(0,1).contiguous()
                 q_linear = int_linear_real.QuantLinear(args.wbits, group_size, module.in_features,module.out_features,not module.bias is None)
                 q_linear.pack(module.cpu(),  scales.float().cpu(), zeros.float().cpu())
-                set_op_by_name(qlayer, name, q_linear)       
+                set_op_by_name(qlayer, name, q_linear)
                 logger.info(f"pack quantized {name} finished")
                 del module        
         torch.cuda.empty_cache()

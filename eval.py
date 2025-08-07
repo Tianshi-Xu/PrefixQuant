@@ -14,13 +14,14 @@ from main import evaluate
 from utils.train_utils import load_json_as_namespace,create_logger
 from accelerate import init_empty_weights, infer_auto_device_map, load_checkpoint_in_model
 from transformers import LlamaForCausalLM
-from transformers.models.llama.modeling_llama import LlamaDecoderLayer
-from quantize.int_linear_fake import QuantLinear
+from transformers.models.llama.modeling_llama import LlamaDecoderLayer, LlamaAttention
 import quantize.int_linear_fake as int_linear_fake
-from quantize.quant_norm import QuantRMSNorm
 from utils.quant_utils import init_s_quantizer
+from quantize.quantizer import UniformAffineQuantizer
+import functools
+from safetensors.torch import load_file
+import ast
 torch.backends.cudnn.benchmark = True
-
 
 def compute_bacc(model):
     b_acc_map = {}
@@ -41,6 +42,63 @@ def compute_bacc(model):
                     else:
                         b_acc_map[name] = b_acc
     return b_acc_map
+
+stat = {}
+def add_overflow_hook(model):
+    
+    def overflow_stat(module, x, name):
+        # print(name)
+        x = x[0]
+        # print(x.shape)
+        x_int = module.get_int(x)
+        # print(x_int.shape)
+        ema_factor = 0.99
+        # x_below_qmin = torch.where(x_int < module.qmin, x_int, torch.zeros_like(x_int))
+        # x_above_qmax = torch.where(x_int > module.qmax, x_int, torch.zeros_like(x_int))
+        if name+"_min" not in stat:
+            stat[name+"_min"] = torch.min(x_int)
+        else:
+            stat[name+"_min"] = torch.min(stat[name+"_min"],torch.min(x_int))
+        if name+"_max" not in stat:
+            stat[name+"_max"] = torch.max(x_int)
+        else:
+            stat[name+"_max"] = torch.max(stat[name+"_max"],torch.max(x_int))
+        if name+"_var" not in stat:
+            stat[name+"_var"] = torch.var(x_int)
+        else:
+            stat[name+"_var"] = ema_factor * stat[name+"_var"] + (1-ema_factor) * torch.var(x_int)
+        
+        # for bit in [4,5,6,7,8]:
+        #     lower_bound = -2**(bit-1)
+        #     upper_bound = 2**(bit-1) - 1
+        #     x_in_range_rate = torch.sum((x_int >= lower_bound) & (x_int <= upper_bound))/torch.numel(x_int)
+        #     x_out_range_rate = 1 - x_in_range_rate
+        #     if name + "_out_"+str(bit) not in stat:
+        #         stat[name + "_out_"+str(bit)] = x_out_range_rate
+        #     else:
+        #         stat[name + "_out_"+str(bit)] = ema_factor * stat[name + "_out_"+str(bit)] + (1-ema_factor) * x_out_range_rate
+        #     # print(f"name:{name}, bit:{bit}, x_out_range_rate:{x_out_range_rate}, ema:{stat[name + '_out_'+str(bit)]}")
+        
+    
+    for name,module in model.named_modules():
+        if isinstance(module, UniformAffineQuantizer) and module.quant_type == "activation":
+            module.register_forward_pre_hook(functools.partial(overflow_stat, name=name))
+
+def compute_bound(model):
+    stat = torch.load("llama3_stat.pth")
+    for _,module in model.named_modules():
+        if isinstance(module,LlamaDecoderLayer):
+            for name,layer in module.named_modules():
+                if isinstance(layer,int_linear_fake.QuantLinear):
+                    print(name)
+                    # weight_int = layer.weight_quantizer.get_int(layer.weight)
+                    # weight_neg = torch.where(weight_int < 0, weight_int, torch.zeros_like(weight_int))
+                    # weight_pos = torch.where(weight_int > 0, weight_int, torch.zeros_like(weight_int))
+                    # weight_neg = torch.sum(torch.abs(weight_neg),dim=-1,keepdim=True)
+                    # weight_pos = torch.sum(weight_pos,dim=-1,keepdim=True)
+                    # weight_max = torch.max(weight_neg,weight_pos)
+                    # T_bound = (2**3 - 1) * weight_max
+                    # k = T_bound/
 
 def main():
     import argparse
@@ -76,13 +134,17 @@ def main():
         prefixed_key_values = torch.load(os.path.join(args.quant_model_path, 'prefixed_key_values.pth'))
     else:
         prefixed_key_values = None
-
-
+    prefix_len = len(quant_config.prefixed_tokens)
     # init quantized model
     config = AutoConfig.from_pretrained(args.quant_model_path,trust_remote_code=True)
+    config._attn_implementation = "eager"
+    config.output_attentions = True
     tokenizer = AutoTokenizer.from_pretrained(args.quant_model_path, use_fast=False,legacy=False,trust_remote_code=True)
     with init_empty_weights():
         model = AutoModelForCausalLM.from_pretrained(args.quant_model_path, config=config, device_map='cpu',torch_dtype=torch.float16,trust_remote_code=True)
+    for name,layer in model.named_modules():
+        if isinstance(layer,LlamaAttention):
+            layer.prefix_len = prefix_len
     wrap_to_quant_model(model)
     # register on-line hadadamrd transformation
     if quant_config.down_online_had:
@@ -95,7 +157,7 @@ def main():
                     layer.self_attn, 
                     rope_function_name, 
                     config=model.config,
-                    online_had=quant_config.qk_online_had)   
+                    online_had=quant_config.qk_online_had)
 
     # init weight quantizer
     if quant_config.wbits < 16:
@@ -122,21 +184,32 @@ def main():
         logger.info('init s quantizer')
         init_s_quantizer(quant_config, model, minmax_init=False)
 
-
     # model.tie_weights()
     device_map = infer_auto_device_map(model)
     print("Loading pre-computed quantized weights...")
     load_checkpoint_in_model(model,checkpoint=args.quant_model_path,device_map=device_map,dtype=torch.float16)
     model.half()    # to make sure same evaluation results with main
-    
     logger.info(model)
-    b_acc = compute_bacc(model)
-    logger.info(f"b_acc: {b_acc}")
-    # exit(0)
+    compute_bound(model)
+    # b_acc = compute_bacc(model)
+    # add_overflow_hook(model)
+    # logger.info(f"b_acc: {b_acc}")
+
     evaluate(model, tokenizer, prefixed_key_values,  args,logger)
+    # torch.save(stat, "llama2_stat.pth")
 
 
 
 if __name__ == "__main__":
-    print(sys.argv)
+    # print(sys.argv)
+    # checkpoint = load_file(os.path.join("pre_quantized_models/Llama-3-8B-w4a4q4s8kv4/", "model-00001-of-00004.safetensors"))
+    # for key in checkpoint.keys():
+    #     if "quantizer" in key:
+    #         print(key,checkpoint[key].shape)
+    # exit(0)
+    
+    # print(stat)
     main()
+    # stat = torch.load("llama2_stat.txt")
+    # compute_bound(stat,model)
+    # print(stat)

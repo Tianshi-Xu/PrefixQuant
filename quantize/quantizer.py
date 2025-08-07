@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from utils.hadamard_utils import random_hadamard_matrix
-
+from einops import rearrange,reduce
 
 CLIPMIN = 1e-4
 
@@ -52,7 +52,7 @@ class UniformAffineQuantizer(nn.Module):
         minmax_init=True,
         disable_zero_point_in_sym=True,
         activation_clipping=False,
-        per_tensor=False,
+        is_s=False,
     ):
         '''
         quantized_item_stat: 
@@ -72,7 +72,8 @@ class UniformAffineQuantizer(nn.Module):
         self.disable_zero_point_in_sym = disable_zero_point_in_sym
         self.activation_clipping = activation_clipping
         self.enable = True
-        self.per_tensor = per_tensor
+        self.is_s = is_s
+        self.num_heads = 0
         if self.asym or not self.disable_zero_point_in_sym:
             self.qmin = 0
             self.qmax = 2 ** (n_bits) - 1
@@ -122,16 +123,17 @@ class UniformAffineQuantizer(nn.Module):
                 self.zero_point = nn.Parameter(torch.zeros(dims,1))
             else:
                 self.zero_point = None
-            
 
     def find_activation_quant_param(self, quantized_item_stat, minmax_init):
-        if self.per_tensor:
-            if quantized_item_stat is not None:
-                self.group_size = quantized_item_stat.shape[-1]
         if self.mode == 'static':
             if minmax_init:
-                x = quantized_item_stat.reshape(-1,self.group_size)
-                xmax = x.amax([-1], keepdim=True)   
+                if self.is_s:
+                    xmax = reduce(quantized_item_stat, "h s1 s2 -> h 1 1", "max")
+                    print("s, xmax.shape:",xmax.shape)
+                    self.num_heads = xmax.shape[0]
+                else:
+                    x = quantized_item_stat.reshape(-1,self.group_size)
+                    xmax = x.amax([-1], keepdim=True)   
                 scale = 2*xmax/(2**self.n_bits-1)
                 scale = scale.clamp(min=1e-4, max=1e4)
                 self.scale = nn.Parameter(scale)
@@ -147,17 +149,19 @@ class UniformAffineQuantizer(nn.Module):
                         zero_point = (2**(self.n_bits-1))*torch.ones_like(self.scale)
                         self.register_buffer("zero_point", zero_point)
             else:
-                if self.per_tensor:
-                    dims = 1
+                if self.is_s:
+                    dims = 32
+                    assert dims > 0
+                    self.scale = nn.Parameter(torch.ones((dims,1,1)))
                 else:
                     dims = self.quantized_shape[-1] // self.group_size
-                self.scale = nn.Parameter(torch.ones((dims,1)))
+                    self.scale = nn.Parameter(torch.ones((dims,1)))
                 if self.asym or not self.disable_zero_point_in_sym:
                     self.zero_point = nn.Parameter(torch.zeros((dims,1)))
                 else:
                     self.zero_point = None
-                    
-                
+                    # zero_point = (2**(self.n_bits-1))*torch.ones_like(self.scale)
+                    # self.register_buffer("zero_point", zero_point)
         elif self.mode == 'dynamic':
             if self.activation_clipping:
                 if self.asym:
@@ -169,14 +173,20 @@ class UniformAffineQuantizer(nn.Module):
                 self.zero_point = None
                 self.qmin = -(2 ** (self.n_bits - 1))
                 self.qmax = 2 ** (self.n_bits - 1) - 1
-
+        # print(f"is_s: {self.is_s}, scale.shape: {self.scale.shape}")
+    
     def static_fake_quant(self, x):
         '''
         static quantization
         '''
         scale = clamp_ste(self.scale,1e-4, 1e4)
+        ### force scale to be power of 2
+        # scale = torch.pow(2, torch.round(torch.log2(scale)))
+        
         round_zero_point = clamp_ste(round_ste(self.zero_point), self.qmin, self.qmax) if self.zero_point is not None else None
         original_shape = x.shape
+        # if self.is_s:
+        #     print("s.shape:",x.shape)
         if self.quant_type == 'weight':
             dim1, dim2 = x.shape
             x_reshaped = x.reshape(-1, self.group_size)
@@ -195,7 +205,9 @@ class UniformAffineQuantizer(nn.Module):
         x_int = round_ste(x_reshaped / scale)
         if round_zero_point is not None:
             x_int = x_int.add(round_zero_point)
-        # x_int = x_int.clamp(self.qmin, self.qmax)
+        if self.quant_type == "weight":
+        # if True:
+            x_int = x_int.clamp(self.qmin, self.qmax)
         x_dequant = x_int
         if round_zero_point is not None:
             x_dequant = x_dequant.sub(round_zero_point)
@@ -209,22 +221,28 @@ class UniformAffineQuantizer(nn.Module):
 
     def get_int(self,x):
         scale = clamp_ste(self.scale,1e-4, 1e4)
-        zero_point = self.zero_point
         
-        
-        round_zero_point = clamp_ste(round_ste(zero_point), self.qmin, self.qmax) if self.zero_point is not None else None
+        round_zero_point = clamp_ste(round_ste(self.zero_point), self.qmin, self.qmax) if self.zero_point is not None else None
+        original_shape = x.shape
         if self.quant_type == 'weight':
             dim1, dim2 = x.shape
             x_reshaped = x.reshape(-1, self.group_size)
         elif self.quant_type == 'activation':
-            bs, n, dim1 = x.shape
-            x_reshaped = x.reshape(bs, n, -1, self.group_size)
-
-
+            if len(x.shape) == 3:
+                bs, n, dim1 = x.shape
+                x_reshaped = x.reshape(bs, n, -1, self.group_size)
+            elif len(x.shape) == 4:
+                bs, n, dim1, dim2 = x.shape
+                x_reshaped = x
+            else:
+                raise ValueError(f"Unsupported shape: {x.shape}")
+            
         x_int = round_ste(x_reshaped / scale)
         if round_zero_point is not None:
             x_int = x_int.add(round_zero_point)
-        # x_int = x_int.clamp(self.qmin, self.qmax)
+        if self.quant_type == "weight":
+        # if True:
+            x_int = x_int.clamp(self.qmin, self.qmax)
         return x_int
     
     def custom_quant(self, x, scale, zero_point):
@@ -232,6 +250,8 @@ class UniformAffineQuantizer(nn.Module):
         quantization with give scale and zero points
         '''
         scale = clamp_ste(scale,1e-4, 1e4)
+        ### force scale to be power of 2
+        # scale = torch.pow(2, torch.round(torch.log2(scale)))
         round_zero_point = clamp_ste(round_ste(zero_point), self.qmin, self.qmax) if zero_point is not None else None
         if self.quant_type == 'weight':
             dim1, dim2 = x.shape
@@ -308,6 +328,39 @@ class UniformAffineQuantizer(nn.Module):
         else:
             raise NotImplementedError
         return x_dequant
+    
+    ### add a print function to print the self.mode, self.qmin, etc
+    def __repr__(self):
+        """Print quantizer configuration and parameters"""
+        info = []
+        info.append(f"UniformAffineQuantizer(")
+        info.append(f"  n_bits={self.n_bits}")
+        info.append(f"  quantized_shape={self.quantized_shape}")
+        info.append(f"  group_size={self.group_size}")
+        info.append(f"  quant_type='{self.quant_type}'")
+        info.append(f"  mode='{self.mode}'")
+        info.append(f"  asym={self.asym}")
+        info.append(f"  disable_zero_point_in_sym={self.disable_zero_point_in_sym}")
+        info.append(f"  activation_clipping={self.activation_clipping}")
+        info.append(f"  enable={self.enable}")
+        info.append(f"  is_s={self.is_s}")
+        info.append(f"  qmin={self.qmin}, qmax={self.qmax}")
+        
+        # Add scale information if it exists
+        if hasattr(self, 'scale') and self.scale is not None:
+            scale_shape = tuple(self.scale.shape) if hasattr(self.scale, 'shape') else 'scalar'
+            info.append(f"  scale_shape={scale_shape}")
+            
+        # Add zero_point information if it exists  
+        if hasattr(self, 'zero_point') and self.zero_point is not None:
+            zp_shape = tuple(self.zero_point.shape) if hasattr(self.zero_point, 'shape') else 'scalar'
+            info.append(f"  zero_point_shape={zp_shape}")
+        else:
+            info.append(f"  zero_point=None")
+            
+        info.append(")")
+        return "\n".join(info)
+    
 
         
 

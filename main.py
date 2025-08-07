@@ -16,6 +16,7 @@ from utils.quant_utils import wrap_to_quant_model, init_weight_quantizer, init_i
 from utils import train_utils
 import utils.model_utils as model_utils
 import utils.rotation_utils as rotation_utils
+from transformers.models.llama.modeling_llama import LlamaAttention
 torch.backends.cudnn.benchmark = True
 
 @torch.no_grad()
@@ -32,8 +33,6 @@ def evaluate(model, tokenizer,prefixed_key_values, args, logger):
         for dataset in ppl_results:
             logger.info(f'{dataset} perplexity: {ppl_results[dataset]:.2f}')
             results_str += f"{ppl_results[dataset]:.2f} "
-    
-
 
     if args.eval_tasks != "":
         if prefixed_key_values is not None:
@@ -45,10 +44,10 @@ def evaluate(model, tokenizer,prefixed_key_values, args, logger):
         model = HFLM(pretrained=model, batch_size=args.eval_batch_size)
         task_manager = lm_eval.tasks.TaskManager()
         results = lm_eval.simple_evaluate(
-        model=model,
-        tasks=task_list,
-        num_fewshot=0,
-        task_manager=task_manager,
+            model=model,
+            tasks=task_list,
+            num_fewshot=0,
+            task_manager=task_manager,
         )
         logger.info(make_table(results))
         total_acc = 0
@@ -68,8 +67,6 @@ def evaluate(model, tokenizer,prefixed_key_values, args, logger):
         # remove wrapper
         if prefixed_key_values is not None:
             model = model.model
-
-
 
 def main():
     import argparse
@@ -164,8 +161,7 @@ def main():
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
     torch.cuda.manual_seed(args.seed)
-        
-
+    
     # init logger
     if args.output_dir:
         Path(args.output_dir).mkdir(parents=True, exist_ok=True)
@@ -187,9 +183,11 @@ def main():
         # load fp quantized model
         config = AutoConfig.from_pretrained(args.model_path,trust_remote_code=True)
         config._attn_implementation = "eager"
+        config.output_attentions = True
         tokenizer = AutoTokenizer.from_pretrained(args.model_path, use_fast=False,legacy=False,trust_remote_code=True)
         dtype = torch.float16 if not args.use_fp32 else torch.float32
         model = AutoModelForCausalLM.from_pretrained(args.model_path, config=config, device_map='cpu',torch_dtype=dtype,trust_remote_code=True)
+        logger.info(f"model: {model}")
         if args.pre_rotate:
             rotation_utils.fuse_layer_norms(model)
             rotation_utils.rotate_model(model, rotate_mode=args.rotate_mode, online=args.down_online_had)
@@ -205,12 +203,12 @@ def main():
         layers = model_utils.get_layers(model)
         for layer in layers:
             rotation_utils.add_qk_rotation_wrapper_after_function_call_in_forward(
-                        layer.self_attn, 
-                        rope_function_name, 
+                        layer.self_attn,
+                        rope_function_name,
                         config=model.config,
-                        online_had=args.qk_online_had)   
+                        online_had=args.qk_online_had)
 
-        prefixed_tokens = None                
+        prefixed_tokens = None   
         prefixed_key_values = None
         args.prefixed_length = 0
         activation_stat = None  
@@ -229,6 +227,7 @@ def main():
                 args.calib_dataset,
                 tokenizer,
                 train_size=64,
+                # train_size=1,
                 val_size=0,
                 seed=args.seed,
                 seqlen=512,
@@ -241,13 +240,20 @@ def main():
                 logger.info(f"time to get prefixed token:{time.time()-tick:.0}s")
                 model.config.prefixed_tokens = prefixed_tokens
                 args.prefixed_length = len(prefixed_tokens)
+                for _, layer in model.named_modules():
+                    if isinstance(layer,LlamaAttention):
+                        layer.prefix_len = len(prefixed_tokens)
                 use_cache = model.config.use_cache
                 model.config.use_cache = True
                 if args.ablate_prefix_number is not None:
                     prefixed_tokens = prefixed_tokens[:args.ablate_prefix_number]
                     logger.info(f'ablation:set prefix as {prefixed_tokens}')
                 output = model(torch.tensor([prefixed_tokens],device=model.device),return_dict=True)
+                # import pdb; pdb.set_trace()
+                # print("len(prefixed_tokens)",len(prefixed_tokens))
                 prefixed_key_values = output.past_key_values
+                # print("len(prefixed_key_values)",len(prefixed_key_values))
+                # print("prefixed_key_values[0].shape",prefixed_key_values[0].shape)
                 model.config.use_cache = use_cache
                 
             # get activation statistic for activation quantization
