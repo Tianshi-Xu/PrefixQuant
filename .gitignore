@@ -4,3 +4,4 @@ bitsandbytes/
 *.pth
 *.txt
 *.png
+__pycache__/
