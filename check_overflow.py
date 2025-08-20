@@ -348,24 +348,18 @@ def main():
     logger.info(model)
     # compute_bound(model)
     # b_acc = compute_bacc(model)
-    # add_overflow_hook(model)
+    add_overflow_hook(model)
     # logger.info(f"b_acc: {b_acc}")
-
+    model_name = "llama3"
     evaluate(model, tokenizer, prefixed_key_values,  args,logger)
-    # torch.save(stat, "llama3_stat.pth")
+    torch.save(stat, f"{model_name}_stat.pth")
+    process_stat(model_name)
+    compute_bound(model)
+    ans = compute_worse_prob(model_name)
+    print(ans)
 
 
 
 if __name__ == "__main__":
-    # print(sys.argv)
-    # checkpoint = load_file(os.path.join("pre_quantized_models/Llama-3-8B-w4a4q4s8kv4/", "model-00001-of-00004.safetensors"))
-    # for key in checkpoint.keys():
-    #     if "quantizer" in key:
-    #         print(key,checkpoint[key].shape)
-    # exit(0)
-    # main()
-    print(compute_worse_prob("llama3"))
-    # stat = torch.load("llama2_stat.txt")
-    # compute_bound(stat,model)
-    # print(stat)
-    # process_stat("llama2")
+    main()
+

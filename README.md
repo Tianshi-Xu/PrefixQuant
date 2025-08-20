@@ -65,3 +65,18 @@ Then, you should get the results shown in our paper, for example:
 [2025-08-08 00:05:01 root] (main.py 64): INFO Average Acc (with norm): 67.76%
 ```
 ## Check the probility of overflow without clip
+Modify the code in `check_overflow.py`, change `model_name` to `llama2` or `llama3` to check the probility of overflow for `Llama-2-7B` or `Llama-3-8B`. Then run the following command:
+
+```
+CUDA_VISIBLE_DEVICES=5 python check_overflow.py \
+--quant_model ./pre_quantized_models/Llama-3-8B-w4a4q4s8kv4 \
+--eval_batch_size 64 \
+--eval_ppl \
+--eval_tasks  piqa,arc_easy,arc_challenge,hellaswag,winogrande
+
+```
+The results will contain the probility of overflow for each component. For example:
+```
+'model.layers.0.self_attn.q_proj': 0.0, 'model.layers.0.self_attn.q_proj_k': 82.63000982057005
+```
+where k represents the bound in the therom1 and theorm2 in our paper.
