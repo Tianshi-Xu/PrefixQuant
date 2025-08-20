@@ -10,6 +10,11 @@ conda activate prefixquant
 
 pip install -r requirements.txt
 ```
+- Note that you must install the correct version of `transformers`
+- If you cannot install `fast-hadamard-transform`, you can install it from source code.
+  - git clone https://github.com/Dao-AILab/fast-hadamard-transform.git
+  - cd fast-hadamard-transform
+  - pip install -e .
 ## Code Modification
 In `YOUR_PATH/transformers/models/llama/modeling_llama.py`, add these code into `LlamaAttention` class, `forward` function.
 ``` python
