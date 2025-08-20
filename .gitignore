@@ -3,5 +3,6 @@ cache/
 bitsandbytes/
 *.pth
 *.png
+*.txt
 test_ppml.ipynb
 __pycache__/
