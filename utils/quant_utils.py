@@ -293,6 +293,7 @@ def init_k_quantizer(args, model, activation_stat=None, minmax_init=True):
                 # print("q.stat.shape:",q_output_stat.shape)
                 # print("k.stat.shape:",output_stat.shape)
                 module.use_k_quant = True
+                module.use_q_quant = True
                 module.k_bits = output_bits
                 module.q_bits = output_bits
                 module.online_had = args.qk_online_had
@@ -311,7 +312,7 @@ def init_k_quantizer(args, model, activation_stat=None, minmax_init=True):
                 sym_stat = "asymmetric" if output_asym else 'symmetric'
                 # print("q.scale.shape:",module.q_quantizer.scale.shape)
                 # print("k.scale.shape:",module.k_quantizer.scale.shape)
-                # print(f'q and k-cache quantization: set {name} as {output_bits}-bit {output_group_size} groupsize {output_mode} {sym_stat} quantization')
+                print(f'q and k-cache quantization: set {name} as {output_bits}-bit {output_group_size} groupsize {output_mode} {sym_stat} quantization')
                 
        
 @torch.no_grad()

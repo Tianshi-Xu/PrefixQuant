@@ -1,20 +1,5 @@
-# PrefixQuant
-Official PyTorch implement for [PrefixQuant: Eliminating Outliers by Prefixed Tokens for Large Language Models Quantization](https://arxiv.org/abs/2410.05265). 
-
-
-
-## News
-[2025/05] 🔥 **We explore the [Scaling Law for Quantization-Aware Training](https://export.arxiv.org/abs/2505.14302), which offers insights and instruction for LLMs QAT.**
-
-[2025/1] Support the learnable activation cliping for dynamic quantization.
-
-[2024/10] We release PrefixQuant, the first work to let static activation quantization outperforms dynamic ones in LLM. We only open the fake quantization code now, and the inference kernels will be released later.
-
-## Contents
-- [Installation](#Installation)
-- [Quantization](#quantization)
-- [Inference](#Inference)
-- [Citation](#citation)
+# PrivLLM-Q
+Official PyTorch implement for PrivLLM-Q quantization part. This repo is based on [PrefixQuant](https://github.com/MengzhaoChen/PrefixQuant).
 
 
 ## Installation
@@ -25,19 +10,31 @@ conda activate prefixquant
 
 pip install -r requirements.txt
 ```
+## Code Modification
+In `YOUR_PATH/transformers/models/llama/modeling_llama.py`, add these code into `LlamaAttention` class, `forward` function.
+``` python
+attn_weights = nn.functional.softmax(attn_weights, dim=-1, dtype=torch.float32).to(query_states.dtype)
+# add the following code to quantize the attention weights
+if hasattr(self, 's_quantizer') and self.s_quantizer is not None:
+            prefix_len = self.prefix_len
+            quantized_suffix = self.s_quantizer(attn_weights[:,:,:,prefix_len:])
+            attn_weights = torch.cat([attn_weights[:,:,:,:prefix_len], quantized_suffix], dim=-1)
+```
 
-## Quantization
+## Reproduce W4A4Q4S8KV4 Quantization Results
+#### 1.Quantized the model
 We provide an example command to quantized `Llama-3-8B` without fine-tuning:
 ```
 CUDA_VISIBLE_DEVICES=0 python main.py \
---model_path path/to/llama-3-8B  \
---model_name Llama-3-8b \
---output_dir ./log/llama-3-8b-w4a4kv4 \
+--model_path /opt/pretrained_models/Llama-3-8B \
+--model_name Llama-3-8B \
+--output_dir ./log/Llama-3-8B-w4a4q4s8kv4 \
 --wbits 4 \
 --input_bits 4 \
 --input_mode static \
 --v_bits 4 \
 --k_bits 4 \
+--s_bits 8 \
 --kv_group_size 128 \
 --kv_mode static \
 --mse_init \
@@ -47,50 +44,24 @@ CUDA_VISIBLE_DEVICES=0 python main.py \
 --set_prefixed_tokens \
 --eval_ppl \
 --eval_tasks  piqa,arc_easy,arc_challenge,hellaswag,winogrande \
---save_quant_dir ./pre_quantized_models/llama-3-8b-w4a4kv4
+--eval_batch_size 64 \
+--save_quant_dir ./pre_quantized_models/Llama-3-8B-w4a4q4s8kv4
 ```
-You can find the detailed fine-tuning setting in the paper. There are some useful information as follows:
-- For dynamic quantization, you should add `--activation_clipping` to enhance the perfomance.
-- You can add `--epochs 20` to introduce fine-tuning for W4A4KV4 quantization, and `--epochs 10` for W4A8KV4 quantization. 
-- For Llama-3-70B(-Instruct) models, you should change the default learning rate to `--quant_lr 2e-5 --weight_lr 2e-6`. 
-- For Llama-2-70B, you should set `--loss_type skip_mse` for the training stability.
+There are some useful information as follows:
+- You can add `--epochs 20` to introduce fine-tuning to further boost the performance.
+#### 2.Evaluate the quantized model without clip
+Change the code in `quantize/quantizer.py`, change `if True` on line 209 to `if self.quant_type == "weight":`; change `if True` on line 244 to `if self.quant_type == "weight":`. Comment out `x_int = x_int.clamp(self.qmin, self.qmax)` on line 264.
 
-## Inference
-We provide an example command to evaluate the quantize models:
+Then evaluate the quantized model:
 ```
-CUDA_VISIBLE_DEVICES=0 python eval.py \
---quant_model ./pre_quantized_models/llama-3-8b-w4a4kv4 \
+CUDA_VISIBLE_DEVICES=5 python eval.py \
+--quant_model ./pre_quantized_models/Llama-3-8B-w4a4q4s8kv4 \
+--eval_batch_size 64 \
 --eval_ppl \
 --eval_tasks  piqa,arc_easy,arc_challenge,hellaswag,winogrande
 ```
-
-## Plot Activation Distribution
-We provide an example command to visualize token-wsie maximum values for linear inputs:
+Then, you should get the results shown in our paper, for example:
 ```
-CUDA_VISIBLE_DEVICES=0 python plot_activation.py \
---model_path path/to/llama-2-7b \
---model_name llama-2-7b \
---plot_linear_input
+[2025-08-08 00:05:01 root] (main.py 64): INFO Average Acc (with norm): 67.76%
 ```
-You can add `--pre_rotate --down_online_had --qk_online_had` to apply hadamard rotation, and add `--set_prefixed_tokens` to set the proposed prefixed tokens in our paper.
-Additionally, you can also change `--plot_linear_input` to other plotting choices, details are as follows:
-- `--plot_linear_output`: plot token-wsie maximum values for linear outputs (such as Q/K/V).
-- `--plot_outlier_token_position`: count the token index of outlier tokens.
-- `--plot_outlier_token`: count the token content of outlier tokens
-- `--plot_layer_wise_outlier_token_number`: plot layer-wise outlier token number
-- `--plot_layer_input_3d` : plot the 3D image of layer inputs.
-- `--plot_block_output_3d` : plot the 3D image of block outputs.
-
-More examples can be found in `./examples/plot.sh`.
-
-
-## Citation
-If you use our PrefixQuant approach in your research, please cite our paper:
-```
-@article{prefixquant,
-  title={PrefixQuant: Eliminating Outliers by Prefixed Tokens for Large Language Models Quantization},
-  author={Chen, Mengzhao and  Liu, Yi and Wang, Jiahao and Bin, Yi and Shao, Wenqi and Luo, Ping},
-  journal={arXiv preprint arXiv:2410.05265},
-  year={2024}
-}
-```
+## Check the probility of overflow without clip

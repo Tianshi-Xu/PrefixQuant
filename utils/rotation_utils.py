@@ -347,6 +347,8 @@ class QKRotationWrapper(torch.nn.Module):
             k = k.transpose(1, 2).flatten(-2)
             # print("in QKWrapper k.shape", k.shape)
             k = self.k_quantizer(k).reshape((bsz, seq_len, num_heads, head_dim)).transpose(1, 2).to(q)
+        # print("self.use_q_quant", self.use_q_quant)
+        # print("self.q_bits", self.q_bits)
         if self.use_q_quant and self.q_bits < 16:
             (bsz, num_heads, seq_len, head_dim) = q.shape
             q = q.transpose(1, 2).flatten(-2)

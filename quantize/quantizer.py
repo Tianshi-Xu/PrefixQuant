@@ -129,7 +129,7 @@ class UniformAffineQuantizer(nn.Module):
             if minmax_init:
                 if self.is_s:
                     xmax = reduce(quantized_item_stat, "h s1 s2 -> h 1 1", "max")
-                    print("s, xmax.shape:",xmax.shape)
+                    # print("s, xmax.shape:",xmax.shape)
                     self.num_heads = xmax.shape[0]
                 else:
                     x = quantized_item_stat.reshape(-1,self.group_size)
@@ -205,8 +205,8 @@ class UniformAffineQuantizer(nn.Module):
         x_int = round_ste(x_reshaped / scale)
         if round_zero_point is not None:
             x_int = x_int.add(round_zero_point)
-        if self.quant_type == "weight":
-        # if True:
+        # if self.quant_type == "weight":
+        if True:
             x_int = x_int.clamp(self.qmin, self.qmax)
         x_dequant = x_int
         if round_zero_point is not None:
@@ -240,8 +240,8 @@ class UniformAffineQuantizer(nn.Module):
         x_int = round_ste(x_reshaped / scale)
         if round_zero_point is not None:
             x_int = x_int.add(round_zero_point)
-        if self.quant_type == "weight":
-        # if True:
+        # if self.quant_type == "weight":
+        if True:
             x_int = x_int.clamp(self.qmin, self.qmax)
         return x_int
     

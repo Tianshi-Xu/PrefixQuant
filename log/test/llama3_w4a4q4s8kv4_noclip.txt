@@ -1,10 +1,10 @@
-[2025-08-02 15:00:02 root] (eval.py 112): INFO args: Namespace(quant_model_path='./pre_quantized_models/Llama-3-8B-w4a4q4s8kv4', output_dir='./log/test', real_quant=False, ppl_seqlen=2048, seed=2, eval_ppl=True, eval_tasks='piqa,arc_easy,arc_challenge,hellaswag,winogrande', eval_batch_size=64, max_memory='70GiB')
-[2025-08-02 15:00:41 root] (eval.py 147): INFO init weight quantizer
-[2025-08-02 15:00:41 root] (eval.py 152): INFO init input quantizer
-[2025-08-02 15:00:41 root] (eval.py 157): INFO init v quantizer
-[2025-08-02 15:00:41 root] (eval.py 163): INFO init k quantizer
-[2025-08-02 15:00:41 root] (eval.py 167): INFO init s quantizer
-[2025-08-02 15:02:11 root] (eval.py 175): INFO LlamaForCausalLM(
+[2025-08-07 23:39:56 root] (eval.py 158): INFO args: Namespace(quant_model_path='./pre_quantized_models/Llama-3-8B-w4a4q4s8kv4', output_dir='./log/test', real_quant=False, ppl_seqlen=2048, seed=2, eval_ppl=True, eval_tasks='piqa,arc_easy,arc_challenge,hellaswag,winogrande', eval_batch_size=64, max_memory='70GiB')
+[2025-08-07 23:40:29 root] (eval.py 193): INFO init weight quantizer
+[2025-08-07 23:40:29 root] (eval.py 198): INFO init input quantizer
+[2025-08-07 23:40:29 root] (eval.py 203): INFO init v quantizer
+[2025-08-07 23:40:29 root] (eval.py 209): INFO init k quantizer
+[2025-08-07 23:40:29 root] (eval.py 213): INFO init s quantizer
+[2025-08-07 23:42:08 root] (eval.py 221): INFO LlamaForCausalLM(
   (model): LlamaModel(
     (embed_tokens): Embedding(128256, 4096)
     (layers): ModuleList(
@@ -266,34 +266,34 @@
   )
   (lm_head): Linear(in_features=4096, out_features=128256, bias=False)
 )
-[2025-08-02 15:02:12 root] (eval.py 178): INFO b_acc: {'self_attn.q_proj': 17, 'self_attn.k_proj': 17, 'self_attn.v_proj': 17, 'self_attn.o_proj': 17, 'mlp.gate_proj': 17, 'mlp.up_proj': 17, 'mlp.down_proj': 19}
-[2025-08-02 15:08:37 root] (main.py 34): INFO wikitext2 perplexity: 7.47
-[2025-08-02 15:08:41 lm-eval] (huggingface.py 118): WARNING `pretrained` model kwarg is not of type `str`. Many other model arguments may be ignored. Please do not launch via accelerate or use `parallelize=True` if passing an existing model this way.
-[2025-08-02 15:08:42 lm-eval] (huggingface.py 337): WARNING Passed an already-initialized model through `pretrained`, assuming single-process call to evaluate() or custom distributed integration
-[2025-08-02 15:08:45 lm-eval] (evaluator.py 131): INFO Setting random seed to 0 | Setting numpy seed to 1234 | Setting torch manual seed to 1234
-[2025-08-02 15:08:51 lm-eval] (evaluator.py 222): WARNING Overwriting default num_fewshot of winogrande from None to 0
-[2025-08-02 15:08:51 lm-eval] (evaluator.py 222): WARNING Overwriting default num_fewshot of hellaswag from None to 0
-[2025-08-02 15:08:51 lm-eval] (evaluator.py 222): WARNING Overwriting default num_fewshot of arc_challenge from None to 0
-[2025-08-02 15:08:51 lm-eval] (evaluator.py 222): WARNING Overwriting default num_fewshot of arc_easy from None to 0
-[2025-08-02 15:08:51 lm-eval] (evaluator.py 222): WARNING Overwriting default num_fewshot of piqa from None to 0
-[2025-08-02 15:08:51 lm-eval] (task.py 395): INFO Building contexts for winogrande on rank 0...
-[2025-08-02 15:08:51 lm-eval] (task.py 395): INFO Building contexts for hellaswag on rank 0...
-[2025-08-02 15:08:55 lm-eval] (task.py 395): INFO Building contexts for arc_challenge on rank 0...
-[2025-08-02 15:08:56 lm-eval] (task.py 395): INFO Building contexts for arc_easy on rank 0...
-[2025-08-02 15:08:58 lm-eval] (task.py 395): INFO Building contexts for piqa on rank 0...
-[2025-08-02 15:08:59 lm-eval] (evaluator.py 362): INFO Running loglikelihood requests
-[2025-08-02 15:42:18 root] (main.py 52): INFO |    Tasks    |Version|Filter|n-shot| Metric |Value |   |Stderr|
+[2025-08-07 23:42:09 root] (eval.py 225): INFO b_acc: {'self_attn.q_proj': 17, 'self_attn.k_proj': 17, 'self_attn.v_proj': 17, 'self_attn.o_proj': 17, 'mlp.gate_proj': 17, 'mlp.up_proj': 17, 'mlp.down_proj': 19}
+[2025-08-07 23:45:13 root] (main.py 33): INFO wikitext2 perplexity: 7.78
+[2025-08-07 23:45:17 lm-eval] (huggingface.py 118): WARNING `pretrained` model kwarg is not of type `str`. Many other model arguments may be ignored. Please do not launch via accelerate or use `parallelize=True` if passing an existing model this way.
+[2025-08-07 23:45:17 lm-eval] (huggingface.py 337): WARNING Passed an already-initialized model through `pretrained`, assuming single-process call to evaluate() or custom distributed integration
+[2025-08-07 23:45:21 lm-eval] (evaluator.py 131): INFO Setting random seed to 0 | Setting numpy seed to 1234 | Setting torch manual seed to 1234
+[2025-08-07 23:45:27 lm-eval] (evaluator.py 222): WARNING Overwriting default num_fewshot of winogrande from None to 0
+[2025-08-07 23:45:27 lm-eval] (evaluator.py 222): WARNING Overwriting default num_fewshot of hellaswag from None to 0
+[2025-08-07 23:45:27 lm-eval] (evaluator.py 222): WARNING Overwriting default num_fewshot of arc_challenge from None to 0
+[2025-08-07 23:45:27 lm-eval] (evaluator.py 222): WARNING Overwriting default num_fewshot of arc_easy from None to 0
+[2025-08-07 23:45:27 lm-eval] (evaluator.py 222): WARNING Overwriting default num_fewshot of piqa from None to 0
+[2025-08-07 23:45:27 lm-eval] (task.py 395): INFO Building contexts for winogrande on rank 0...
+[2025-08-07 23:45:27 lm-eval] (task.py 395): INFO Building contexts for hellaswag on rank 0...
+[2025-08-07 23:45:32 lm-eval] (task.py 395): INFO Building contexts for arc_challenge on rank 0...
+[2025-08-07 23:45:33 lm-eval] (task.py 395): INFO Building contexts for arc_easy on rank 0...
+[2025-08-07 23:45:35 lm-eval] (task.py 395): INFO Building contexts for piqa on rank 0...
+[2025-08-07 23:45:36 lm-eval] (evaluator.py 362): INFO Running loglikelihood requests
+[2025-08-08 00:05:01 root] (main.py 51): INFO |    Tasks    |Version|Filter|n-shot| Metric |Value |   |Stderr|
 |-------------|------:|------|-----:|--------|-----:|---|-----:|
-|winogrande   |      1|none  |     0|acc     |0.6788|±  |0.0131|
-|hellaswag    |      1|none  |     0|acc     |0.5779|±  |0.0049|
-|             |       |none  |     0|acc_norm|0.7725|±  |0.0042|
-|arc_challenge|      1|none  |     0|acc     |0.4437|±  |0.0145|
-|             |       |none  |     0|acc_norm|0.4744|±  |0.0146|
-|arc_easy     |      1|none  |     0|acc     |0.7479|±  |0.0089|
-|             |       |none  |     0|acc_norm|0.7231|±  |0.0092|
-|piqa         |      1|none  |     0|acc     |0.7715|±  |0.0098|
-|             |       |none  |     0|acc_norm|0.7851|±  |0.0096|
+|winogrande   |      1|none  |     0|acc     |0.6701|±  |0.0132|
+|hellaswag    |      1|none  |     0|acc     |0.5684|±  |0.0049|
+|             |       |none  |     0|acc_norm|0.7598|±  |0.0043|
+|arc_challenge|      1|none  |     0|acc     |0.4360|±  |0.0145|
+|             |       |none  |     0|acc_norm|0.4753|±  |0.0146|
+|arc_easy     |      1|none  |     0|acc     |0.7399|±  |0.0090|
+|             |       |none  |     0|acc_norm|0.7168|±  |0.0092|
+|piqa         |      1|none  |     0|acc     |0.7644|±  |0.0099|
+|             |       |none  |     0|acc_norm|0.7661|±  |0.0099|
 
-[2025-08-02 15:42:18 root] (main.py 64): INFO Average Acc: 64.39%
-[2025-08-02 15:42:18 root] (main.py 65): INFO Average Acc (with norm): 68.68%
-[2025-08-02 15:42:18 root] (main.py 66): INFO Results string: 7.47 67.88 57.79 77.25 44.37 47.44 74.79 72.31 77.15 78.51
+[2025-08-08 00:05:01 root] (main.py 63): INFO Average Acc: 63.58%
+[2025-08-08 00:05:01 root] (main.py 64): INFO Average Acc (with norm): 67.76%
+[2025-08-08 00:05:01 root] (main.py 65): INFO Results string: 7.78 67.01 56.84 75.98 43.60 47.53 73.99 71.68 76.44 76.61
