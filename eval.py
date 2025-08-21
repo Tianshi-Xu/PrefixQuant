@@ -363,8 +363,8 @@ if __name__ == "__main__":
     #     if "quantizer" in key:
     #         print(key,checkpoint[key].shape)
     # exit(0)
-    # main()
-    print(compute_worse_prob("llama3"))
+    main()
+    # print(compute_worse_prob("llama3"))
     # stat = torch.load("llama2_stat.txt")
     # compute_bound(stat,model)
     # print(stat)
