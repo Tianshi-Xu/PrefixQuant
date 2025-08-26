@@ -222,7 +222,7 @@ def compute_bound(model):
                 sigma_x = torch.sqrt(stat[layer_idx]["down_var"]).detach().cpu().numpy()
             else:
                 raise ValueError(f"Unsupported layer: {name}")
-            k = 4/sigma_x * tmp_k
+            k = 8/sigma_x * tmp_k
             z_score = k.astype(np.float64)
             prob_tail = st.norm.sf(z_score)
             p_overflow = 2 * prob_tail
