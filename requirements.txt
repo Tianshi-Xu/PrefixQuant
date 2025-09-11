@@ -1,6 +1,6 @@
+datasets==2.18.0
 accelerate==0.32.0
 bitsandbytes==0.41.0
-datasets==2.18.0
 lm_eval==0.4.2
 numpy==1.23.4
 tqdm==4.64.1
