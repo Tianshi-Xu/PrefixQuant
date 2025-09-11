@@ -11,7 +11,7 @@ from transformers import AutoTokenizer, AutoConfig, AutoModelForCausalLM
 from quantize.int_linear_real import load_quantized_model
 from accelerate import infer_auto_device_map, dispatch_model
 from accelerate.hooks import remove_hook_from_module
-from utils.quant_utils import wrap_to_quant_model, init_weight_quantizer, init_input_quantizer, register_online_had, get_act_stat, init_k_quantizer, init_v_quantizer,get_quant_config,check_quantizer, init_s_quantizer
+from utils.quant_utils import wrap_to_quant_model, init_weight_quantizer, init_input_quantizer, register_online_had, get_act_stat, init_k_quantizer, init_v_quantizer,get_quant_config,check_quantizer, init_s_quantizer, init_silu_quantizer
 from utils import train_utils
 import utils.model_utils as model_utils
 import utils.rotation_utils as rotation_utils
@@ -152,6 +152,7 @@ def main():
     # ------------------ ablation ------------------------------------------
     parser.add_argument("--ablate_prefix_number", type=int, default=None,help="")
     parser.add_argument("--s_bits", type=int, default=16,help="")
+    parser.add_argument("--silu_bits", type=int, default=16,help="")
 
 
     os.environ['TOKENIZERS_PARALLELISM'] = 'false'
@@ -287,6 +288,10 @@ def main():
         if args.s_bits < 16:
             logger.info('init s quantizer')
             init_s_quantizer(args, model, activation_stat)
+            
+        if args.silu_bits < 16:
+            logger.info('init silu quantizer')
+            init_silu_quantizer(args, model, activation_stat)
             
         train_utils.cleanup_memory()
 

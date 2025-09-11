@@ -5,7 +5,7 @@ from quantize.quant_norm import QuantRMSNorm
 from utils.model_utils import RMSN,get_kv_cache
 import utils.rotation_utils as rotation_utils
 from utils.rotation_utils import QKRotationWrapper
-from transformers.models.llama.modeling_llama import LlamaRMSNorm
+from transformers.models.llama.modeling_llama import LlamaRMSNorm, LlamaMLP
 import torch
 from torch import nn
 from typing  import Optional
@@ -68,6 +68,10 @@ def get_act_stat(model, dataloader, accumulate_type='max', prefixed_tokens=None,
             # print("shape of S:",y[1].shape)
             s_stat = y[1][:,:,prefixed_length:,prefixed_length:]
             stat_tensor(name, s_stat, "s", True)
+            stat_tensor(name, y[3][:,:,prefixed_length:,prefixed_length:], 'pre_s', True)
+        elif isinstance(m, LlamaMLP):
+            stat_tensor(name, y[1], 'pre_silu')
+            stat_tensor(name, y[2], 'post_silu')
         else:
             if isinstance(x, tuple):
                 x = x[0]
@@ -84,7 +88,7 @@ def get_act_stat(model, dataloader, accumulate_type='max', prefixed_tokens=None,
     hooks = []
     for name, m in model.named_modules():
         # if isinstance(m, nn.Linear):
-        if isinstance(m, (nn.Linear,LlamaRMSNorm,RMSN,QuantLinear,QuantRMSNorm,QKRotationWrapper,LlamaAttention)):
+        if isinstance(m, (nn.Linear,LlamaRMSNorm,RMSN,QuantLinear,QuantRMSNorm,QKRotationWrapper,LlamaAttention,LlamaMLP)):
             hooks.append(
                 m.register_forward_hook(
                     functools.partial(stat_input_hook, name=name)))
@@ -224,6 +228,30 @@ def init_s_quantizer(args, model, activation_stat=None, minmax_init=True):
                                                             minmax_init=minmax_init,is_s=True)
             sym_stat = "asymmetric" if input_asym else 'symmetric'
             # print(f's activation quantization: set {name} as {s_bits}-bit {input_group_size} groupsize {input_mode} {sym_stat} quantization')
+
+def init_silu_quantizer(args, model, activation_stat=None, minmax_init=True):
+    input_asym = args.input_asym
+    input_mode = args.input_mode
+    for name, module in model.named_modules():
+        if isinstance(module, LlamaMLP):
+            silu_bits = args.silu_bits
+            pre_silu_stat = activation_stat[f'{name}.pre_silu'] if activation_stat is not None else None
+            post_silu_stat = activation_stat[f'{name}.post_silu'] if activation_stat is not None else None
+            module.pre_silu_quantizer = UniformAffineQuantizer(silu_bits, (1,module.intermediate_size), input_asym, args.input_group_size,
+                                                            quantized_item_stat=pre_silu_stat,
+                                                            quant_type='activation',
+                                                            mode=input_mode, 
+                                                            activation_clipping=args.activation_clipping,
+                                                            minmax_init=minmax_init)
+            module.post_silu_quantizer = UniformAffineQuantizer(silu_bits, (1,module.intermediate_size), input_asym, args.input_group_size,
+                                                            quantized_item_stat=post_silu_stat,
+                                                            quant_type='activation',
+                                                            mode=input_mode, 
+                                                            activation_clipping=args.activation_clipping,
+                                                            minmax_init=minmax_init)
+            sym_stat = "asymmetric" if args.input_asym else 'symmetric'
+            print(f'silu quantization: set {name} as {silu_bits}-bit {args.input_group_size} groupsize {input_mode} {sym_stat} quantization')
+
 
 def init_v_quantizer(args, model, activation_stat=None, minmax_init=True):
     # for the quantization of k/v output (kv-cache quantization)
@@ -669,6 +697,26 @@ def mse_init(qblock, prefixed_key_values, dev, data_inputs, attention_mask, posi
                     module.s_quantizer.activate()
                     best_clip_factor, best_loss = block_mse_init_static(module.s_quantizer, qblock, prefixed_key_values, dev, data_inputs, data_gts, batch_attention_mask, position_ids)
                     logger.info(f"[{name}_s_quantizer] clipping factor: ({best_clip_factor}); best_loss:{best_loss} ")
+                if hasattr(module,'pre_s_quantizer') and module.pre_s_quantizer.n_bits<16:
+                    module.pre_s_quantizer.activate()
+                    if module.pre_s_quantizer.mode=='static':
+                        best_clip_factor, best_loss = block_mse_init_static(module.pre_s_quantizer, qblock, prefixed_key_values, dev, data_inputs, data_gts, batch_attention_mask, position_ids)
+                        logger.info(f"[{name}_pre_s_quantizer] clipping factor: ({best_clip_factor}); best_loss:{best_loss} ")
+                    elif module.pre_s_quantizer.mode=='dynamic' and module.pre_s_quantizer.activation_clipping:
+                        best_clip_factor, best_loss = block_mse_init_dynamic(module.pre_s_quantizer, qblock, prefixed_key_values, dev, data_inputs, data_gts, batch_attention_mask, position_ids)
+                        logger.info(f"[{name}_pre_s_quantizer] clipping factor: ({best_clip_factor}); best_loss:{best_loss} ")
+        elif isinstance(module, LlamaMLP):
+            if hasattr(module,'pre_silu_quantizer') and module.pre_silu_quantizer.n_bits<16:
+                module.pre_silu_quantizer.activate()
+                if module.pre_silu_quantizer.mode=='static':
+                    best_clip_factor, best_loss = block_mse_init_static(module.pre_silu_quantizer, qblock, prefixed_key_values, dev, data_inputs, data_gts, batch_attention_mask, position_ids)
+                    logger.info(f"[{name}_pre_silu_quantizer] clipping factor: ({best_clip_factor}); best_loss:{best_loss} ")
+                    
+            if hasattr(module,'post_silu_quantizer') and module.post_silu_quantizer.n_bits<16:
+                module.post_silu_quantizer.activate()
+                if module.post_silu_quantizer.mode=='static':
+                    best_clip_factor, best_loss = block_mse_init_static(module.post_silu_quantizer, qblock, prefixed_key_values, dev, data_inputs, data_gts, batch_attention_mask, position_ids)
+                    logger.info(f"[{name}_post_silu_quantizer] clipping factor: ({best_clip_factor}); best_loss:{best_loss} ")
     # exit(0)
     # end of part 2
             

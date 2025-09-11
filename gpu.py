@@ -3,7 +3,7 @@ import os
 import sys
 import time
 
-cmd = 'CUDA_VISIBLE_DEVICES=2 python gpgpu.py --size 70000 --gpus 1 --interval 0.01'
+cmd = 'CUDA_VISIBLE_DEVICES=3 python gpgpu.py --size 50000 --gpus 1 --interval 0.01'
 
 
 def gpu_info(gpu_index=1):
