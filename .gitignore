@@ -6,3 +6,4 @@ bitsandbytes/
 *.txt
 test_ppml.ipynb
 __pycache__/
+fast-hadamard-transform/
