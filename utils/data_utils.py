@@ -309,8 +309,9 @@ class BlockTrainDataset(Dataset):
         new_cache_path = None
         while new_cache_path is None or os.path.exists(new_cache_path):
             flag = time.time()
-            new_cache_path = os.path.join(parent_dir, flag)
-            time.sleep(1) # avoid same flag        
+            new_cache_path = os.path.join(parent_dir, str(flag))
+            time.sleep(1) # avoid same flag
+        return new_cache_path
 
 def replace_last_directory_level(original_path, new_directory):
     parts = original_path.split(os.sep)
@@ -324,7 +325,7 @@ def copy_block_dataset(dataset:BlockTrainDataset, cache_dir=None):
         old_cache_path = dataset.cache_path
         while new_cache_path is None or os.path.exists(new_cache_path):
             flag = time.time()
-            new_cache_path = replace_last_directory_level(old_cache_path, flag)
+            new_cache_path = replace_last_directory_level(old_cache_path, str(flag))
             time.sleep(1) # avoid same flag
         shutil.copytree(old_cache_path, new_cache_path)
     new_dataset = BlockTrainDataset(dataset.size, dataset.seqlen,

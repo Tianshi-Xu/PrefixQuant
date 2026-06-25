@@ -53,6 +53,7 @@ class UniformAffineQuantizer(nn.Module):
         disable_zero_point_in_sym=True,
         activation_clipping=False,
         is_s=False,
+        popcount_k=0,
     ):
         '''
         quantized_item_stat: 
@@ -71,6 +72,7 @@ class UniformAffineQuantizer(nn.Module):
         self.asym = asym
         self.disable_zero_point_in_sym = disable_zero_point_in_sym
         self.activation_clipping = activation_clipping
+        self.popcount_k = int(popcount_k or 0)
         self.enable = True
         self.is_s = is_s
         self.num_heads = 0
@@ -86,6 +88,58 @@ class UniformAffineQuantizer(nn.Module):
             self.find_weight_quant_param(quantized_item_stat,minmax_init)
         elif quant_type == 'activation':
             self.find_activation_quant_param(quantized_item_stat,minmax_init)
+
+    def _popcount_codebook(self, device=None, dtype=None):
+        if self.popcount_k <= 0:
+            return None
+        if self.asym or not self.disable_zero_point_in_sym:
+            values = [v for v in range(self.qmin, self.qmax + 1) if int(v).bit_count() <= self.popcount_k]
+        else:
+            max_abs = self.qmax
+            abs_values = [v for v in range(0, max_abs + 1) if int(v).bit_count() <= self.popcount_k]
+            values = sorted(set([-v for v in abs_values if v != 0] + abs_values))
+        if not values:
+            raise ValueError(f"No integer codes satisfy popcount_k={self.popcount_k}")
+        return torch.tensor(values, device=device, dtype=dtype or torch.float32)
+
+    def _nearest_popcount_codes(self, x_scaled, codebook):
+        # codebook is sorted. Values below/above the midpoint boundaries map to
+        # the nearest allowed code without materializing an extra codebook axis.
+        boundaries = (codebook[:-1] + codebook[1:]) * 0.5
+        indices = torch.bucketize(x_scaled.contiguous(), boundaries)
+        return codebook[indices]
+
+    @torch.no_grad()
+    def _refine_popcount_scale(self, x, num_iters=6):
+        codebook = self._popcount_codebook(device=x.device, dtype=torch.float32)
+        if codebook is None:
+            return
+        original_shape = x.shape
+        x_reshaped = x.reshape(-1, self.group_size).float()
+        scale = self.scale.data.to(device=x.device, dtype=torch.float32).clamp(1e-4, 1e4)
+        for _ in range(num_iters):
+            q = self._nearest_popcount_codes(x_reshaped / scale, codebook)
+            denom = (q * q).sum(dim=1, keepdim=True)
+            new_scale = (x_reshaped * q).sum(dim=1, keepdim=True) / denom.clamp_min(1e-12)
+            new_scale = new_scale.abs().clamp(1e-4, 1e4)
+            scale = torch.where(denom > 0, new_scale, scale)
+        self.scale.data = scale.to(device=self.scale.device, dtype=self.scale.dtype).reshape_as(self.scale.data)
+
+    def _quantize_integer(self, x_reshaped, scale, round_zero_point):
+        x_scaled = x_reshaped / scale
+        if round_zero_point is not None:
+            x_scaled = x_scaled + round_zero_point
+        if self.popcount_k > 0:
+            codebook = self._popcount_codebook(device=x_reshaped.device, dtype=x_reshaped.dtype)
+            x_int_nograd = self._nearest_popcount_codes(x_scaled, codebook)
+            x_int = (x_int_nograd - x_scaled).detach() + x_scaled
+            cb_min = float(codebook.min().item())
+            cb_max = float(codebook.max().item())
+            x_int = x_int.clamp(cb_min, cb_max)
+        else:
+            x_int = round_ste(x_scaled)
+            x_int = x_int.clamp(self.qmin, self.qmax)
+        return x_int
 
     @torch.no_grad()     
     def find_weight_quant_param(self, quantized_item_stat,minmax_init):
@@ -115,7 +169,9 @@ class UniformAffineQuantizer(nn.Module):
                     self.qmin = -(2 ** (self.n_bits - 1))
                     self.qmax = 2 ** (self.n_bits - 1) - 1
                 else:
-                    self.register_buffer("zero_point", (2**(self.n_bits-1)-1)*torch.ones_like(self.scale))    
+                    self.register_buffer("zero_point", (2**(self.n_bits-1)-1)*torch.ones_like(self.scale))
+            if self.popcount_k > 0:
+                self._refine_popcount_scale(quantized_item_stat)
         else:
             dims = self.quantized_shape[0] * self.quantized_shape[1] // self.group_size
             self.scale = nn.Parameter(torch.ones(dims,1))
@@ -202,12 +258,7 @@ class UniformAffineQuantizer(nn.Module):
 
         # print(f"x_reshaped.shape: {x_reshaped.shape}")
         # print(f"scale.shape: {scale.shape}")
-        x_int = round_ste(x_reshaped / scale)
-        if round_zero_point is not None:
-            x_int = x_int.add(round_zero_point)
-        # if self.quant_type == "weight":
-        if True:
-            x_int = x_int.clamp(self.qmin, self.qmax)
+        x_int = self._quantize_integer(x_reshaped, scale, round_zero_point)
         x_dequant = x_int
         if round_zero_point is not None:
             x_dequant = x_dequant.sub(round_zero_point)
@@ -237,12 +288,7 @@ class UniformAffineQuantizer(nn.Module):
             else:
                 raise ValueError(f"Unsupported shape: {x.shape}")
             
-        x_int = round_ste(x_reshaped / scale)
-        if round_zero_point is not None:
-            x_int = x_int.add(round_zero_point)
-        # if self.quant_type == "weight":
-        if True:
-            x_int = x_int.clamp(self.qmin, self.qmax)
+        x_int = self._quantize_integer(x_reshaped, scale, round_zero_point)
         return x_int
     
     def custom_quant(self, x, scale, zero_point):
@@ -261,10 +307,7 @@ class UniformAffineQuantizer(nn.Module):
             x_reshaped = x.reshape(bs, n, -1, self.group_size)
 
 
-        x_int = round_ste(x_reshaped / scale)
-        if round_zero_point is not None:
-            x_int = x_int.add(round_zero_point)
-        x_int = x_int.clamp(self.qmin, self.qmax)
+        x_int = self._quantize_integer(x_reshaped, scale, round_zero_point)
         x_dequant = x_int
         if round_zero_point is not None:
             x_dequant = x_dequant.sub(round_zero_point)
@@ -299,10 +342,7 @@ class UniformAffineQuantizer(nn.Module):
             quant_range = 2 * xmax
         scale = (quant_range / (2**self.n_bits-1)).clamp(min=1e-4, max=1e4)
         round_zero_point = -(xmin/scale).round().clamp(min=-1e4, max=1e4) if self.asym else None
-        x_int = round_ste(x / scale)
-        if round_zero_point is not None:
-            x_int = x_int.add(round_zero_point)
-        x_int = x_int.clamp(self.qmin, self.qmax)
+        x_int = self._quantize_integer(x, scale, round_zero_point)
         x_dequant = x_int
         if round_zero_point is not None:
             x_dequant = x_dequant.sub(round_zero_point)
@@ -342,6 +382,7 @@ class UniformAffineQuantizer(nn.Module):
         info.append(f"  asym={self.asym}")
         info.append(f"  disable_zero_point_in_sym={self.disable_zero_point_in_sym}")
         info.append(f"  activation_clipping={self.activation_clipping}")
+        info.append(f"  popcount_k={self.popcount_k}")
         info.append(f"  enable={self.enable}")
         info.append(f"  is_s={self.is_s}")
         info.append(f"  qmin={self.qmin}, qmax={self.qmax}")

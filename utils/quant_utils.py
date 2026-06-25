@@ -132,6 +132,8 @@ def register_online_had(model):
             module.fp32_had = False
 
 def init_weight_quantizer(args, model, minmax_init=True):
+    lora_rank = getattr(args, "lora_residual_rank", 0) if getattr(args, "use_lora_residual", False) else 0
+    lora_alpha = getattr(args, "lora_residual_alpha", None)
     for name, module in model.named_modules():
         if isinstance(module,int_linear_fake.QuantLinear):
             # layer_name = name.split('.')[-1]
@@ -147,7 +149,10 @@ def init_weight_quantizer(args, model, minmax_init=True):
             module.weight_quantizer = UniformAffineQuantizer(wbits, module.weight.shape,  w_asym, w_group_size,
                                                            quantized_item_stat=quantized_item_stat,
                                                            quant_type='weight',
-                                                           minmax_init=minmax_init)
+                                                           minmax_init=minmax_init,
+                                                           popcount_k=getattr(args, "w_popcount_k", 0))
+            if lora_rank > 0:
+                module.enable_lora_residual(lora_rank, lora_alpha)
             sym_stat = "asymmetric" if w_asym else 'symmetric'
             # print(f'weight quantization: set {name} as w{wbits}g{w_group_size} {sym_stat} quantization')
 
@@ -175,7 +180,8 @@ def init_input_quantizer(args, model, activation_stat=None, minmax_init=True):
                                                             quant_type='activation',
                                                             mode=input_mode, 
                                                             activation_clipping=activation_clipping,
-                                                            minmax_init=minmax_init)
+                                                            minmax_init=minmax_init,
+                                                            popcount_k=getattr(args, "input_popcount_k", 0))
             sym_stat = "asymmetric" if input_asym else 'symmetric'
             # print(f'input activation quantization: set {name} as {input_bits}-bit {input_group_size} groupsize {input_mode} {sym_stat} quantization')
         elif isinstance(module,(QuantRMSNorm)):
@@ -196,7 +202,8 @@ def init_input_quantizer(args, model, activation_stat=None, minmax_init=True):
                                                             quant_type='activation',
                                                             mode=output_mode, 
                                                             activation_clipping=activation_clipping,
-                                                            minmax_init=minmax_init)
+                                                            minmax_init=minmax_init,
+                                                            popcount_k=getattr(args, "input_popcount_k", 0))
             sym_stat = "asymmetric" if output_asym else 'symmetric'
             # print(f'output activation quantization: set {name} as {output_bits}-bit {output_group_size} groupsize {output_mode} {sym_stat} quantization')
 
@@ -344,7 +351,12 @@ def weight_layer_mse_init(module, input_feat, n_grid=20, max_shrink=0.5):
     input_feat = input_feat.to(w.device)
     oc_batch_size = 256 if w.shape[0] % 256 == 0 else 64  # prevent OOM
     assert w.shape[0] % oc_batch_size == 0
-    
+
+    use_lora = getattr(module, 'use_lora_residual', False) and module.lora_A is not None and module.lora_B is not None
+    if use_lora:
+        # Pre-compute the fixed LoRA effective weight: scaling * B @ A, shape (out, in)
+        lora_eff_full = module.lora_scaling * (module.lora_B.data.float() @ module.lora_A.data.float())
+
     best_scale_list = []
     min_errs_list = []
     for i_b in range(w.shape[0] // oc_batch_size):
@@ -362,7 +374,14 @@ def weight_layer_mse_init(module, input_feat, n_grid=20, max_shrink=0.5):
             w_sub = w_sub.view(-1, group_size)
             q_w = quantizer.custom_quant(w_sub, cur_scale, zero_point)
             q_w = q_w.view(oc_batch_size, -1, group_size)
-            cur_out = torch.einsum('ngc, gcm -> ngm', input_feat.to(w_sub.dtype), q_w.permute(1,2,0))
+
+            if use_lora:
+                lora_eff_sub = lora_eff_full[i_b * oc_batch_size: (i_b + 1) * oc_batch_size]
+                lora_eff_sub = lora_eff_sub.reshape(oc_batch_size, -1, group_size).to(q_w.dtype)
+                effective_w = q_w + lora_eff_sub
+                cur_out = torch.einsum('ngc, gcm -> ngm', input_feat.to(w_sub.dtype), effective_w.permute(1,2,0))
+            else:
+                cur_out = torch.einsum('ngc, gcm -> ngm', input_feat.to(w_sub.dtype), q_w.permute(1,2,0))
 
             # co, 1, n_group, 1
             err = (cur_out - org_out).pow(2).mean(dim=0).view(min_errs.shape)
@@ -649,6 +668,12 @@ def mse_init(qblock, prefixed_key_values, dev, data_inputs, attention_mask, posi
             # init weight quantizer
             if hasattr(module,'weight_quantizer') and module.weight_quantizer.n_bits<16:
                 module.weight_quantizer.activate()
+                # Initialize LoRA BEFORE scale search, so it acts as a fixed weight component
+                if getattr(module, "use_lora_residual", False):
+                    quantized_weight = module.weight_quantizer(module.weight.data)
+                    module.fit_lora_residual(quantized_weight)
+                    module.enable_lora_forward = False
+                    logger.info(f"[{name}] LoRA SVD initialized at min-max scale (rank={module.lora_rank})")
                 if 'q_proj' in name or 'k_proj' in name:
                     if args.skip_qk_weight_init:
                         continue
@@ -706,6 +731,18 @@ def weight_parameters(model):
     for n, m in model.named_parameters():
         # if n.find('weight') > -1 and not (n.find('scale') > -1 or n.find('zero_point') > -1):
         if n.find('weight') > -1 and not (n.find('weight_quantizer') > -1):
+            params.append(m)
+    return iter(params)
+
+def set_lora_parameters(model, requires_grad):
+    for n, m in model.named_parameters():
+        if n.find('lora_A') > -1 or n.find('lora_B') > -1:
+            m.requires_grad = requires_grad
+
+def lora_parameters(model):
+    params = []
+    for n, m in model.named_parameters():
+        if n.find('lora_A') > -1 or n.find('lora_B') > -1:
             params.append(m)
     return iter(params)
     
@@ -771,11 +808,31 @@ def deactivate_quantizer(model):
             m.deactivate()
             
 @torch.no_grad()   
-def quant_inplace(model):
+def quant_inplace(model, fit_lora=True):
     for name, module in model.named_modules():
         if isinstance(module, QuantLinear):
             if module.wbits < 16:
-                module.weight.data = module.weight_quantizer(module.weight.data)
+                has_lora = getattr(module, "use_lora_residual", False) and module.lora_A is not None
+                # Only refine scale when there is no LoRA — refining would invalidate the fixed LoRA fit.
+                if not has_lora and getattr(module.weight_quantizer, "popcount_k", 0) > 0:
+                    module.weight_quantizer._refine_popcount_scale(module.weight.data)
+                quantized_weight = module.weight_quantizer(module.weight.data)
+                module.weight.data = quantized_weight
+
+
+@torch.no_grad()
+def init_lora_from_current_residual(model):
+    for name, module in model.named_modules():
+        if isinstance(module, QuantLinear):
+            if module.wbits < 16 and getattr(module, "use_lora_residual", False):
+                quantized_weight = module.weight_quantizer(module.weight.data)
+                module.fit_lora_residual(quantized_weight)
+
+
+def set_lora_forward(model, enable: bool):
+    for module in model.modules():
+        if isinstance(module, QuantLinear):
+            module.enable_lora_forward = enable
 
 
 class TruncateFunction(torch.autograd.Function):
@@ -853,8 +910,13 @@ def get_quant_config(args):
     quantization_config = {}
     quantization_config["wbits"] = args.wbits
     quantization_config["w_group_size"] = args.w_group_size
+    quantization_config["w_popcount_k"] = args.w_popcount_k
     quantization_config["w_asym"] = args.w_asym
+    quantization_config["use_lora_residual"] = getattr(args, "use_lora_residual", False)
+    quantization_config["lora_residual_rank"] = getattr(args, "lora_residual_rank", 0)
+    quantization_config["lora_residual_alpha"] = getattr(args, "lora_residual_alpha", None)
     quantization_config["input_bits"] = args.input_bits
+    quantization_config["input_popcount_k"] = args.input_popcount_k
     quantization_config["input_group_size"] = args.input_group_size
     quantization_config["input_asym"] = args.input_asym
     quantization_config["input_mode"] = args.input_mode
