@@ -36,6 +36,8 @@ def evaluate(model, tokenizer,prefixed_key_values, args, logger):
     if args.eval_tasks != "":
         if prefixed_key_values is not None:
             model = model_utils.WrappedPrefixCausalLM(model, prefixed_key_values)
+        import datasets
+        datasets.config.HF_DATASETS_TRUST_REMOTE_CODE = True
         import lm_eval
         from lm_eval.models.huggingface import HFLM
         from lm_eval.utils import make_table
@@ -51,17 +53,21 @@ def evaluate(model, tokenizer,prefixed_key_values, args, logger):
         logger.info(make_table(results))
         total_acc = 0
         total_acc_with_norm = 0
-        for task in ['winogrande','hellaswag','arc_challenge','arc_easy','piqa']:
-            if task in task_list:
-                total_acc += results['results'][task]['acc,none']
-                results_str += f"{results['results'][task]['acc,none']*100:.2f} "
-                if 'acc_norm,none' in results['results'][task]:
-                    results_str += f"{results['results'][task]['acc_norm,none']*100:.2f} "
-                    total_acc_with_norm += results['results'][task]['acc_norm,none']
-                else:
-                    total_acc_with_norm += results['results'][task]['acc,none']
-        logger.info(f'Average Acc: {total_acc/len(task_list)*100:.2f}%')
-        logger.info(f'Average Acc (with norm): {total_acc_with_norm/len(task_list)*100:.2f}%')
+        average_tasks = [task for task in ['winogrande','hellaswag','arc_challenge','arc_easy','piqa'] if task in task_list]
+        for task in average_tasks:
+            total_acc += results['results'][task]['acc,none']
+            results_str += f"{results['results'][task]['acc,none']*100:.2f} "
+            if 'acc_norm,none' in results['results'][task]:
+                results_str += f"{results['results'][task]['acc_norm,none']*100:.2f} "
+                total_acc_with_norm += results['results'][task]['acc_norm,none']
+            else:
+                total_acc_with_norm += results['results'][task]['acc,none']
+        if average_tasks:
+            logger.info(f'Average Acc: {total_acc/len(average_tasks)*100:.2f}%')
+            logger.info(f'Average Acc (with norm): {total_acc_with_norm/len(average_tasks)*100:.2f}%')
+        else:
+            logger.info('Average Acc: N/A')
+            logger.info('Average Acc (with norm): N/A')
         logger.info(f'Results string: {results_str.strip()}')
         # remove wrapper
         if prefixed_key_values is not None:
@@ -83,10 +89,20 @@ def main():
     # -----------------quantization setting------------------------------------
     parser.add_argument("--wbits", type=int, default=16, help="quantization bits")
     parser.add_argument("--w_group_size", type=int, default=-1, help="quantization group size")
+    parser.add_argument("--w_popcount_k", type=int, default=0,
+                        help="Restrict abs(weight integer code) to values whose binary popcount <= k; 0 disables it")
     parser.add_argument("--w_asym", dest="w_asym", action="store_true", help="Set w_asym to True")
     parser.add_argument("--w_sym", dest="w_asym", action="store_false", help="Set w_asym to False")
     parser.set_defaults(w_asym=False)
+    parser.add_argument("--use_lora_residual", action="store_true",
+                        help="Fit an unquantized LoRA branch to the deterministic residual W_fp - W_quant")
+    parser.add_argument("--lora_residual_rank", type=int, default=0,
+                        help="Rank of deterministic residual LoRA; only used with --use_lora_residual")
+    parser.add_argument("--lora_residual_alpha", type=float, default=None,
+                        help="LoRA residual alpha. Defaults to rank, so scaling is 1.0")
     parser.add_argument("--input_bits", type=int, default=16, help="quantization bits")
+    parser.add_argument("--input_popcount_k", type=int, default=0,
+                        help="Restrict abs(activation integer code) to values whose binary popcount <= k; 0 disables it")
     parser.add_argument("--input_group_size", type=int, default=-1, help="quantization group size")
     parser.add_argument("--input_mode", type=str, default='dynamic',help="quantization type")
     parser.add_argument("--input_asym", dest="input_asym", action="store_true", help="Set input_asym to True")
@@ -117,11 +133,13 @@ def main():
     # -----------------training setting------------------------------------
     parser.add_argument("--quant_lr", type=float, default=5e-5, help="lr of quantization parameters (s and z)")
     parser.add_argument("--weight_lr", type=float, default=5e-6, help="lr of fp weights")
+    parser.add_argument("--lora_lr", type=float, default=None, help="lr of LoRA A/B; defaults to weight_lr if not set")
     parser.add_argument("--min_lr_factor", type=float, default=10, help="min_lr = lr/min_lr_factor")
     parser.add_argument("--clip_grad", type=float, default=0.3)
     parser.add_argument("--wd", type=float, default=0,help="weight decay")
     parser.add_argument("--off_load_to_disk", action="store_true", default=False, help="save training dataset to disk, saving CPU memory but may reduce training speed")
     parser.add_argument("--use_fp32", action="store_true")
+    parser.add_argument("--use_bf16", action="store_true", help="use bfloat16 for training (more numerically stable than fp16)")
     parser.add_argument("--debug", action="store_true")
     parser.add_argument("--early_stop", type=int, default=0,help="early stoping after validation loss do not decrease")
     parser.add_argument("--constant_wlr", action="store_true")
@@ -337,7 +355,7 @@ def main():
         quant_config['prefixed_tokens'] = prefixed_tokens
         train_utils.save_dict_as_json(quant_config, os.path.join(args.save_quant_dir, 'prefixequant_config.json'))
         logger.info(f"save model to {args.save_quant_dir} success")
-    logger.info(model)
+    # logger.info(model)
     evaluate(model, tokenizer, prefixed_key_values,  args,logger)
 
 

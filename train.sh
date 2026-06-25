@@ -1,4 +1,5 @@
 ### PrefixQuant
+<<<<<<< HEAD
 CUDA_VISIBLE_DEVICES=3 python main.py \
 --model_path /opt/pretrained_models/Llama-2-7b-hf \
 --model_name Llama-2-7b-hf \
@@ -10,6 +11,24 @@ CUDA_VISIBLE_DEVICES=3 python main.py \
 --k_bits 4 \
 --s_bits 8 \
 --silu_bits 16 \
+=======
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+
+CUDA_VISIBLE_DEVICES=1 /data/home/xts/miniconda3/envs/prefixquant/bin/python main.py \
+--model_path /opt/models/Llama-2-13b-hf \
+--model_name Llama-2-13B \
+--output_dir ./log/Llama-2-13B-w8a8-popwk1-actk2-lorar16 \
+--wbits 8 \
+--w_popcount_k 1 \
+--use_lora_residual \
+--lora_residual_rank 16 \
+--input_bits 8 \
+--input_popcount_k 2 \
+--input_mode static \
+--v_bits 16 \
+--k_bits 16 \
+--s_bits 16 \
+>>>>>>> submission
 --kv_group_size 128 \
 --kv_mode static \
 --mse_init \
@@ -18,6 +37,14 @@ CUDA_VISIBLE_DEVICES=3 python main.py \
 --qk_online_had \
 --set_prefixed_tokens \
 --eval_ppl \
+<<<<<<< HEAD
 --eval_tasks  piqa,arc_easy,arc_challenge,hellaswag,winogrande \
 --eval_batch_size 64 \
 --save_quant_dir ./pre_quantized_models/Llama-2-7b-hf-w4a4q4s8kv4n16
+=======
+--eval_tasks piqa,arc_easy,arc_challenge,hellaswag,winogrande,lambada,openbookqa \
+--max_memory 32GiB \
+--ppl_seqlen 1024 \
+--eval_batch_size 8 \
+--save_quant_dir ./pre_quantized_models/Llama-2-13B-w8a8-popwk1-actk2-lorar16
+>>>>>>> submission

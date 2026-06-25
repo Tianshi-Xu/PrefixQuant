@@ -279,6 +279,70 @@ def compute_worse_prob(model_name):
         'component_stats': results
     }
 
+<<<<<<< HEAD
+=======
+def compute_bound(model):
+    model_name = "llama3"
+    stat = torch.load(f"{model_name}_processed_stat.pth")
+    res = [{} for _ in range(32)]
+    for name,layer in model.named_modules():
+        if isinstance(layer,int_linear_fake.QuantLinear):
+            # print("name:",name)
+            layer_idx = int(name.split(".")[2])
+            weight_int = layer.weight_quantizer.get_int(layer.weight).to(torch.float64)
+            # print(weight_int.shape)
+            # Compute L1 and L2 norms along the input dimension (dim=1) for each output neuron
+            l1_norms = torch.norm(weight_int, p=1, dim=1)  # [out_features]
+            l2_norms = torch.norm(weight_int, p=2, dim=1)  # [out_features]
+            # Take the maximum ratio across all output neurons (dim=0)
+            tmp_k = torch.min(l1_norms / l2_norms)
+            # print(tmp_k)
+            tmp_k = tmp_k.detach().cpu().numpy()
+            if "q_proj" in name or "k_proj" in name or "v_proj" in name:
+                sigma_x = torch.sqrt(stat[layer_idx]["qkv_var"]).detach().cpu().numpy()
+            elif "o_proj" in name:
+                sigma_x = torch.sqrt(stat[layer_idx]["o_var"]).detach().cpu().numpy()
+            elif "up_proj" in name or "gate_proj" in name:
+                sigma_x = torch.sqrt(stat[layer_idx]["up_gate_var"]).detach().cpu().numpy()
+            elif "down_proj" in name:
+                sigma_x = torch.sqrt(stat[layer_idx]["down_var"]).detach().cpu().numpy()
+            else:
+                raise ValueError(f"Unsupported layer: {name}")
+            k = 8/sigma_x * tmp_k
+            z_score = k.astype(np.float64)
+            prob_tail = st.norm.sf(z_score)
+            p_overflow = 2 * prob_tail
+            res[layer_idx][name] = p_overflow
+            res[layer_idx][name+"_k"] = z_score
+        elif isinstance(layer, QKRotationWrapper):
+            layer_idx = int(name.split(".")[2])
+            sigma_q = torch.sqrt(stat[layer_idx]["q_var"]).detach().cpu().numpy()
+            sigma_k = torch.sqrt(stat[layer_idx]["k_var"]).detach().cpu().numpy()
+            sigma_q = sigma_q.astype(np.float32)
+            sigma_k = sigma_k.astype(np.float32)
+            k = np.sqrt(128) * (2 ** 3 -1 )*(2 ** 3 -1 )/(sigma_q * sigma_k)
+            z_score = k.astype(np.float64)
+            prob_tail = st.norm.sf(z_score)
+            p_overflow = 2 * prob_tail
+            res[layer_idx][name] = p_overflow
+            res[layer_idx][name+"_k"] = z_score
+        elif "s_quantizer" in name:
+            layer_idx = int(name.split(".")[2])
+            sigma_v = torch.sqrt(stat[layer_idx]["v_var"]).detach().cpu().numpy()
+            sigma_s = torch.sqrt(stat[layer_idx]["s_var"]).detach().cpu().numpy()
+            sigma_v = sigma_v.astype(np.float32)
+            sigma_s = sigma_s.astype(np.float32)
+            k = np.sqrt(128) * (2 ** 7 -1 )*(2 ** 3 -1 )/(sigma_v * sigma_s)
+            z_score = k.astype(np.float64)
+            prob_tail = st.norm.sf(z_score)
+            p_overflow = 2 * prob_tail
+            res[layer_idx][name] = p_overflow
+            res[layer_idx][name+"_k"] = z_score
+    print(res)
+    torch.save(res, f"{model_name}_bound.pth")
+            
+
+>>>>>>> submission
 def main():
     import argparse
 

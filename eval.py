@@ -357,6 +357,7 @@ def main():
 
 
 if __name__ == "__main__":
+<<<<<<< HEAD
     # print(sys.argv)
     # checkpoint = load_file(os.path.join("pre_quantized_models/Llama-3-8B-w4a4q4s8kv4/", "model-00001-of-00004.safetensors"))
     # for key in checkpoint.keys():
@@ -369,3 +370,6 @@ if __name__ == "__main__":
     # compute_bound(stat,model)
     # print(stat)
     # process_stat("llama2")
+=======
+    main()
+>>>>>>> submission

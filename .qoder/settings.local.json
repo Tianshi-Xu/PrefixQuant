@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(nvidia-smi --query-gpu=index,memory.used,utilization.gpu --format=csv,noheader 2>/dev/null | head -8)",
+      "Bash(cd /data/home/xts/code/PrefixQuant && PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True CUDA_VISIBLE_DEVICES=0 /data/home/xts/miniconda3/envs/prefixquant/bin/python main.py \\\\\n--model_path /opt/models/Llama-2-7b-hf \\\\\n--model_name Llama-2-7B \\\\\n--output_dir ./log/Llama-2-7B-w8a8-popwk1-actk2-lorar16-ep20-pureonly \\\\\n--wbits 8 \\\\\n--w_popcount_k 1 \\\\\n--use_lora_residual \\\\\n--lora_residual_rank 16 \\\\\n--input_bits 8 \\\\\n--input_popcount_k 2 \\\\\n--input_mode static \\\\\n--v_bits 16 \\\\\n--k_bits 16 \\\\\n--s_bits 16 \\\\\n--kv_group_size 128 \\\\\n--kv_mode static \\\\\n--mse_init \\\\\n--pre_rotate \\\\\n--down_online_had \\\\\n--qk_online_had \\\\\n--set_prefixed_tokens \\\\\n--epochs 20 \\\\\n--quant_lr 0 \\\\\n--weight_lr 0 \\\\\n--lora_lr 1e-5 \\\\\n--clip_grad 0.5 \\\\\n--eval_ppl \\\\\n--eval_tasks piqa,arc_easy,arc_challenge,hellaswag,winogrande,lambada,openbookqa \\\\\n--max_memory 32GiB \\\\\n--ppl_seqlen 1024 \\\\\n--eval_batch_size 8 \\\\\n--save_quant_dir ./pre_quantized_models/Llama-2-7B-w8a8-popwk1-actk2-lorar16-ep20-pureonly)"
+    ]
+  }
+}

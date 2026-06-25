@@ -11,7 +11,8 @@ from utils.quant_utils import (
     quant_parameters,weight_parameters,trainable_parameters,
     set_quant_state,quant_inplace,set_quant_parameters,
     set_weight_parameters,trainable_parameters_num,get_named_linears,set_op_by_name,
-    mse_init)
+    mse_init,init_lora_from_current_residual,set_lora_forward,
+    lora_parameters,set_lora_parameters)
 import time
 from utils.train_utils import NativeScalerWithGradNormCount
 from utils.data_utils import BlockTrainDataset, copy_block_dataset
@@ -108,6 +109,14 @@ class CustomLRSchedule(object):
             param_group_index += 1  
         else:
             self.weight_scheduler = None
+        lora_lr = getattr(args, 'lora_lr', None)
+        if lora_lr is not None and lora_lr > 0:
+            empty_optimizer_3 = torch.optim.AdamW([torch.tensor(0)], lr=lora_lr)
+            self.lora_scheduler = CosineAnnealingLR(empty_optimizer_3, T_max=total_iter, eta_min=lora_lr/args.min_lr_factor)
+            self.lora_index = param_group_index
+            param_group_index += 1
+        else:
+            self.lora_scheduler = None
     def step(self, optimizer):
         if self.quant_scheduler is not None:
             self.quant_scheduler.step()
@@ -115,6 +124,9 @@ class CustomLRSchedule(object):
         if self.weight_scheduler is not None:
             self.weight_scheduler.step()
             optimizer.param_groups[self.weight_index]['lr'] = self.weight_scheduler.get_lr()[0]
+        if self.lora_scheduler is not None:
+            self.lora_scheduler.step()
+            optimizer.param_groups[self.lora_index]['lr'] = self.lora_scheduler.get_lr()[0]
         
              
 def block_ap(
@@ -143,7 +155,11 @@ def block_ap(
         model.model.rotary_emb = model.model.rotary_emb.to(dev)
     layers[0] = layers[0].to(dev)
     dtype = torch.float16 if not args.use_fp32 else torch.float32
-    traincast = torch.cuda.amp.autocast if not args.use_fp32 else nullcontext
+    if args.use_fp32 or getattr(args, 'use_bf16', False):
+        # bf16 mode: training in fp32 (qlayer.float() before train), bf16 only for eval
+        traincast = nullcontext
+    else:
+        traincast = torch.cuda.amp.autocast
 
     # step 2: init dataset
     fp_train_inps = BlockTrainDataset(args.train_size, args.training_seqlen, 
@@ -258,21 +274,32 @@ def block_ap(
             # mse_init(qlayer,prefixed_key_values, dev, sub_train_input, position_ids, logger, args, sub_train_gt)
             logger.info("MSE init end")
         
+        if args.epochs > 0 and getattr(args, "use_lora_residual", False):
+            init_lora_from_current_residual(qlayer)
+            logger.info("LoRA warm-started from current quantization residual")
+
         # activate quantization
-        set_quant_state(qlayer,weight_quant=True,act_quant=True)  
+        set_quant_state(qlayer,weight_quant=True,act_quant=True)
+        if getattr(args, "use_lora_residual", False):
+            set_lora_forward(qlayer, True)
         total_training_iteration = args.epochs * args.train_size / args.batch_size
         if args.epochs > 0:
             with torch.no_grad():
                 qlayer.float()      # fp32 is also required for AMP training
             # create optimizer
-            assert args.quant_lr > 0 or args.weight_lr > 0
+            effective_lora_lr = args.lora_lr if getattr(args, 'lora_lr', None) is not None else args.weight_lr
+            args.lora_lr = effective_lora_lr  # so CustomLRSchedule sees it
+            assert args.quant_lr > 0 or args.weight_lr > 0 or (effective_lora_lr > 0 and getattr(args, 'use_lora_residual', False))
             set_quant_parameters(qlayer,args.quant_lr > 0)
             set_weight_parameters(qlayer,args.weight_lr > 0)
+            set_lora_parameters(qlayer, effective_lora_lr > 0)
             param = []
             if args.quant_lr > 0:
                 param.append({"params":quant_parameters(qlayer),"lr":args.quant_lr})
             if args.weight_lr > 0:
                 param.append({"params":weight_parameters(qlayer),"lr":args.weight_lr})
+            if effective_lora_lr > 0 and getattr(args, 'use_lora_residual', False):
+                param.append({"params":lora_parameters(qlayer),"lr":effective_lora_lr})
                 
             lr_schedule = CustomLRSchedule(args, total_training_iteration)
             optimizer = torch.optim.AdamW(param, weight_decay=args.wd)
@@ -302,8 +329,12 @@ def block_ap(
             del optimizer
 
         # real smooth and quantization
-        qlayer.half()
+        if getattr(args, 'use_bf16', False):
+            qlayer.to(torch.bfloat16)
+        else:
+            qlayer.half()
         quant_inplace(qlayer)
+        set_lora_forward(qlayer, True)
         set_quant_state(qlayer,weight_quant=False, act_quant=True)  # weight has been quantized inplace, activation should be quantized on-line
         if args.epochs>0 or args.mse_init:
             # update inputs of quantization model
