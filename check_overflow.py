@@ -279,8 +279,6 @@ def compute_worse_prob(model_name):
         'component_stats': results
     }
 
-<<<<<<< HEAD
-=======
 def compute_bound(model):
     model_name = "llama3"
     stat = torch.load(f"{model_name}_processed_stat.pth")
@@ -340,9 +338,8 @@ def compute_bound(model):
             res[layer_idx][name+"_k"] = z_score
     print(res)
     torch.save(res, f"{model_name}_bound.pth")
-            
 
->>>>>>> submission
+
 def main():
     import argparse
 
